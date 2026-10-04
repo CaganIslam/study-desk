@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.venv.nosync/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Local config and secrets
+.env
+.env.*
+config.local.toml
+
+# Personal study data must never be committed (see docs/adr/0003)
+data/
+*.db
+*.db-journal
+*.sqlite
+*.m4a
+*.qta
+*.wav
+*.heic
+*.HEIC
+
+# macOS
+.DS_Store

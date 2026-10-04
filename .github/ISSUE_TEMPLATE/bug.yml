@@ -1,0 +1,57 @@
+name: Bug
+description: A defect found in testing or use. Reserve the `bug` label for real defects.
+title: "<Area>: "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which layer? Also apply the matching `area:` label.
+      options:
+        - backend
+        - frontend
+        - ingest
+        - ai
+        - devops
+        - docs
+        - cross-area
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (relative to the milestone)
+      options:
+        - "high - needed this milestone"
+        - "medium - by next milestone"
+        - "low - anytime before final"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps, with seed/data and the account used if relevant.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected_actual
+    attributes:
+      label: Expected vs actual
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: Location (file:line)
+      description: Where the defect lives, if known.
+  - type: input
+    id: source
+    attributes:
+      label: Introduced by / found in
+      description: PR or milestone where this surfaced (bug-hunt context).

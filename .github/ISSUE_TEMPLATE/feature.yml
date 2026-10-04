@@ -1,0 +1,82 @@
+name: Feature / Enhancement
+description: New functionality or an improvement, specced as an engineering ticket.
+title: "<Area>: "
+labels: ["feat"]
+body:
+  - type: markdown
+    attributes:
+      value: "One issue per area. For cross-platform work, file one per area and link them (Blocked by / Blocks)."
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which layer? Also apply the matching `area:` label.
+      options:
+        - backend
+        - frontend
+        - ingest
+        - ai
+        - devops
+        - docs
+        - cross-area
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (relative to the milestone)
+      options:
+        - "high - needed this milestone"
+        - "medium - by next milestone"
+        - "low - anytime before final"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Need
+      description: What's missing or wrong. Include file:line references where relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Wanted / Scope
+      description: What we want to end up with.
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options
+      description: >-
+        The viable approaches, one line of trade-off each - don't pre-decide here.
+        The implementer picks one at propose time and the choice is recorded on the
+        issue. Decisions that reach beyond this issue belong in BLUEPRINT.md or an
+        ADR instead. Put API / JSON / model contracts in fenced code blocks.
+      render: markdown
+  - type: textarea
+    id: files
+    attributes:
+      label: Files
+      description: Paths you expect to touch.
+  - type: input
+    id: deps
+    attributes:
+      label: Blocked by / Blocks
+      description: Issue numbers, e.g. "Blocked by #12; Blocks #15".
+  - type: input
+    id: traceability
+    attributes:
+      label: Requirements covered
+      description: Spec / requirement IDs this maps back to.
+  - type: checkboxes
+    id: dod
+    attributes:
+      label: Definition of Done
+      options:
+        - label: Automated tests added/updated (unit + contract/flow as needed)
+        - label: Manual test steps written and passed (or N/A - no human-hands check needed)
+        - label: Docs / ADR updated if the change is structural
+        - label: PROGRESS.md updated
+        - label: Reviewed and approved (author ≠ reviewer)

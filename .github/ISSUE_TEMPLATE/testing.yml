@@ -1,0 +1,54 @@
+name: Testing / QA
+description: A verification task - unit/contract/flow coverage, a manual QA checklist, or a bug hunt.
+title: "QA: "
+labels: ["testing"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: QA kind
+      options:
+        - Unit test coverage
+        - Contract suite (status + shape + field names)
+        - Flow / end-to-end suite
+        - Manual QA checklist
+        - Bug hunt
+        - Demo rehearsal / final report
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: "Runnable checks (tests, lint, build, curl) are run by the agent and pasted as evidence. Manual QA is only for genuine human-hands/eyes checks (UI clicks, judging look/sound)."
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area (if layer-specific)
+      options:
+        - backend
+        - frontend
+        - ingest
+        - ai
+        - devops
+        - docs
+        - all
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What this covers, and any dependency (e.g. "blocked by the unit-test issues").
+    validations:
+      required: true
+  - type: textarea
+    id: preconditions
+    attributes:
+      label: Pre-conditions (for manual QA)
+      description: Seed commands, reset steps, named test accounts.
+      render: shell
+  - type: textarea
+    id: checklist
+    attributes:
+      label: Checklist
+      description: One checkbox per scenario; tag each with its source PR. Tick as evidence.
+      placeholder: |
+        - [ ] Scenario A (#PR) - expected ...
+        - [ ] Scenario B (#PR) - expected ...
