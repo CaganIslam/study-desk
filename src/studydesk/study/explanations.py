@@ -12,7 +12,7 @@ from studydesk.ai.runner import Runner
 from studydesk.ai.tutor import LEVELS, VARIANTS, SlideContext, explain_call
 from studydesk.courses import Catalog
 from studydesk.db import Database
-from studydesk.study import sessions
+from studydesk.study import sessions, terms
 from studydesk.study.prefetch import InFlight
 
 
@@ -99,8 +99,7 @@ class Explainer:
         return row["summary"] if row else None
 
     def known_terms(self, course_code: str) -> tuple[str, ...]:
-        """Terms the student marked as known (filled in by the terms feature)."""
-        return ()
+        return terms.known_list(self.db, course_code)
 
     def context(self, deck_id: int, idx: int, today: date | None = None) -> SlideContext:
         deck = decks.get_deck(self.db, deck_id)
@@ -172,11 +171,12 @@ class Explainer:
                     result.duration_ms,
                 ),
             )
+        terms.capture(self.db, deck["course_code"], list(data.get("terms", [])), deck_id, idx, "explanation")
         notes = " ".join(data.get("exam_notes", []))
-        terms = " ".join(f"{t.get('term', '')} {t.get('meaning', '')}" for t in data.get("terms", []))
+        words = " ".join(f"{t.get('term', '')} {t.get('meaning', '')}" for t in data.get("terms", []))
         sessions.index(
             self.db, "explanation", deck_id, idx, deck["course_code"], ctx.title,
-            f"{data.get('explanation_md', '')}\n{notes}\n{terms}",
+            f"{data.get('explanation_md', '')}\n{notes}\n{words}",
         )  # fmt: skip
         return Explanation(
             deck_id=deck_id,

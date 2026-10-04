@@ -280,11 +280,11 @@ main {
   margin-top: 12px;
 }
 .term {
-  padding: 2px 8px;
+  padding: 2px 10px;
   border-radius: 999px;
+  border-color: transparent;
   background: var(--accent-soft);
   font-size: 14px;
-  cursor: help;
 }
 .variant-tag {
   font-size: 14px;
@@ -385,4 +385,87 @@ ul.plain {
 ul.plain li {
   padding: 6px 0;
   border-bottom: 1px solid var(--line);
+}
+
+/* terms */
+.toplink {
+  margin-left: auto;
+}
+.term-card {
+  width: min(560px, calc(100vw - 32px));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--fg);
+  padding: 18px 20px;
+}
+.term-card::backdrop {
+  background: rgb(0 0 0 / 0.35);
+}
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.card-head h2 {
+  margin: 0;
+}
+.meaning {
+  color: var(--muted);
+  margin-top: 4px;
+}
+.status-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.term-card h3 {
+  font-size: 15px;
+  margin: 14px 0 0;
+}
+.terms-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.terms-head input {
+  font: inherit;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--fg);
+}
+.term-list {
+  list-style: none;
+  padding: 0;
+}
+.term-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  gap: 12px;
+  width: 100%;
+  margin: 4px 0;
+  text-align: left;
+  align-items: center;
+}
+.term-row span {
+  color: var(--muted);
+}
+.pill {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+}
+.status-hard .pill {
+  color: var(--error);
+  border-color: var(--error);
+}
+.status-known .pill {
+  color: var(--known);
+  border-color: var(--known);
 }

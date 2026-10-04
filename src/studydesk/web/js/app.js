@@ -4,6 +4,7 @@ import { showHome } from "./home.js";
 import { showCourse } from "./course.js";
 import { leaveStudy, showStudy } from "./study.js";
 import { initBar } from "./bar.js";
+import { showTerms } from "./terms.js";
 
 applyStrings();
 initBar();
@@ -20,6 +21,7 @@ async function route() {
   try {
     if (page === "course" && a) await showCourse(view, crumbs, a);
     else if (page === "deck" && a) await showStudy(view, crumbs, Number(a), Number(b) || 1);
+    else if (page === "terms") await showTerms(view, crumbs, a);
     else await showHome(view, crumbs);
   } catch (error) {
     const key = `error.${error.code}`;

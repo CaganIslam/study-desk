@@ -53,5 +53,21 @@
   "search.none": "\"{q}\" hiçbir anlatımda ya da soruda geçmiyor.",
   "search.kind.explanation": "anlatım",
   "search.kind.question": "soru",
-  "bar.nothing_to_resume": "Henüz kaldığın bir yer yok."
+  "bar.nothing_to_resume": "Henüz kaldığın bir yer yok.",
+  "nav.terms": "Terimler",
+  "terms.title": "Terimler",
+  "terms.all": "Tümü",
+  "terms.status.new": "Yeni",
+  "terms.status.hard": "Zor",
+  "terms.status.known": "Biliyorum",
+  "terms.filter": "Ara…",
+  "terms.none": "Henüz terim yok. Slayt çalıştıkça burası dolacak.",
+  "terms.definition": "Sınav tanımı",
+  "terms.example": "Örnek",
+  "terms.seen": "Geçtiği yerler",
+  "terms.speak": "Oku",
+  "terms.close": "Kapat",
+  "terms.source.explanation": "anlatım",
+  "terms.source.question": "soru",
+  "terms.count": "{n} terim"
 }
