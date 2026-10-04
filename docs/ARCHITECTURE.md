@@ -16,7 +16,7 @@ src/studydesk/
   courses/           courses, schedule, syllabi, time → course matching
   decks/             PDF → slide PNG + text cache
   ai/                claude -p runner, prompts/, schemas/
-  ingest/            moodle.py, voicememos.py, transcribe.py, photos.py, books.py
+  ingest/            moodle.py, recordings.py, transcribe.py, photos.py, books.py
   study/             sessions, steps, resume, prefetch, terms, review
   web/               static HTML/CSS/JS, vendor/, strings.tr.json
 scripts/             launchd install / uninstall
@@ -54,7 +54,7 @@ Database: `~/Library/Application Support/StudyDesk/study.db` (SQLite). A daily c
 - Always bind the server to `127.0.0.1`.
 - Always send Claude only what one call needs: the current slide and a short context, never whole decks or whole transcripts (except the alignment call).
 - Never commit personal data: slides, transcripts, photos, schedules, tokens, the database.
-- Never store audio. Never modify or delete anything in the Voice Memos library or the photo library.
+- Never store audio: a dropped recording is deleted once its transcript is saved. Never read or modify the Voice Memos or Photos libraries.
 - Never send deterministic work to Claude.
 - Never load assets from a CDN at runtime. Vendor them.
 - Commit messages and PRs carry no AI attribution.
