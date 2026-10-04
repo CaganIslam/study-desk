@@ -9,7 +9,7 @@ A local-first study companion for university courses. It runs on your Mac as a s
 - **Slide by slide.** Open a course and continue where you left off. Press "next" to get a short explanation of the current slide in your own language. Technical terms stay in English, since that is the language of the exam.
 - **One input bar.** Type a question about the slide ("what is a linear separator?") or a command ("open ML lecture 2", "go to slide 30") in the same box.
 - **Explanation controls.** Short, normal or detailed explanations. A "simpler" button explains the slide again from scratch, and "I know this, skip" moves on and remembers what you already know.
-- **Lecture recordings.** Record the lecture with Voice Memos on your phone or tablet. The recording is picked up automatically, matched to the right course by the time it was recorded and transcribed locally. It is then aligned to the slides, so every explanation includes what the lecturer said on that slide.
+- **Lecture recordings.** Record the lecture with Voice Memos on your phone or tablet, then drag the recording into the app. It is matched to the right course by the time it was recorded, transcribed locally and checked. If the transcript comes out broken, the app tells you and suggests a fix. Good transcripts are aligned to the slides, so every explanation includes what the lecturer said on that slide.
 - **Board photos.** Photos of the board are matched to the course and the slide by the time they were taken, and their content is transcribed.
 - **Terms.** Every new term goes into a glossary with a one-sentence English definition you could write in an exam. A daily spaced-repetition review asks you, among other things, to write the English term from its meaning.
 - **Moodle sync.** New course files are downloaded when you open the app.
@@ -24,7 +24,7 @@ A local-first study companion for university courses. It runs on your Mac as a s
 
 ## Requirements (planned)
 
-- macOS on Apple Silicon. Local transcription uses MLX, and voice memo import reads the macOS Voice Memos library.
+- macOS on Apple Silicon (local transcription uses MLX).
 - Claude Code, installed and logged in
 - Python 3.12+ with [uv](https://docs.astral.sh/uv/), and ffmpeg
 - Optional: a Moodle account with web service access, for automatic course file sync

@@ -9,12 +9,12 @@ Checks run before building on them. Each one either passed with evidence or stay
 | 3 | A recording's start time is available without the Voice Memos database | **Pass.** `creation_time` in the file metadata (UTC). Drag-and-drop imports can still be matched to a course. | 2026-10-03 |
 | 4 | Time-based course matching is right | **Pass** on two real samples: a 47-minute recording starting Thursday 11:46 matched the Thursday 10:00-13:00 course (confirmed by the user), and a 50-minute recording starting Thursday 14:50 matched the Thursday 13:00-16:00 course, with the clashing slot the user does not attend ignored. | 2026-10-04 |
 | 5 | Moodle can be read without Claude, directly from Python | **Pass.** `core_webservice_get_site_info`, `core_enrol_get_users_courses`, `core_course_get_contents` and a `pluginfile.php` download with the token all work, 0.1-0.4 s per call, with TLS verification on. | 2026-10-04 |
-| 6 | The server, started by launchd, can read the Voice Memos library (Full Disk Access) | open | |
-| 7 | iCloud downloads new recordings to the Mac without the Voice Memos app being opened | open | |
+| 6 | The server, started by launchd, can read the Voice Memos library (Full Disk Access) | **Dropped.** The user drags recordings into the app instead (decision 2026-10-04). No Full Disk Access is needed; the course still comes from the file's `creation_time` (check 3). | 2026-10-04 |
+| 7 | iCloud downloads new recordings to the Mac without the Voice Memos app being opened | **Dropped** with check 6. | 2026-10-04 |
 | 8 | mlx-whisper on a real lecture: speed, technical-term accuracy, hallucination on silence | **Pass, with one required setting.** `condition_on_previous_text=False` is mandatory: with the default (`True`) the transcript fell into a repetition loop after 4 minutes and lost the remaining 46. With it off, a 50-minute lecture took 36 s (turbo) and the text is readable and faithful. Details below. | 2026-10-04 |
 
 Notes:
-- The Voice Memos library is `~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings/` with `CloudRecordings.db` (`ZCLOUDRECORDING`: `ZDATE`, `ZDURATION`, `ZPATH`; `ZDATE` is seconds since 2001-01-01, add 978307200 for Unix time). It cannot be read without Full Disk Access.
+- (Kept for reference, not used.) The Voice Memos library is `~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings/` with `CloudRecordings.db` (`ZCLOUDRECORDING`: `ZDATE`, `ZDURATION`, `ZPATH`; `ZDATE` is seconds since 2001-01-01, add 978307200 for Unix time). It cannot be read without Full Disk Access.
 - A 47-minute `.qta` is about 207 MB, mostly the spatial track. The app does not store audio, so size is not an issue.
 - mlx-whisper's `transcribe()` supports `word_timestamps`, `initial_prompt` and `hallucination_silence_threshold`.
 

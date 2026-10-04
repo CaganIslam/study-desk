@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Recordings by drag and drop
+- Issue: #1 (closed, not planned)  ·  Milestone: Milestone 0 - Verification
+- What changed: automatic Voice Memos import dropped at the maintainer's request; recordings are dragged into the app. Checks 6-7 dropped, BLUEPRINT and README updated, transcript quality check added as a cross-cutting rule.
+- Notes for next time: no Full Disk Access anywhere. The recording time comes from `creation_time` inside the file.
+
 ## 2026-10-04 - Whisper benchmark on a real lecture
 - Issue: #2  ·  Milestone: Milestone 0 - Verification
 - What changed: phase-0 check 8 recorded. Five transcription runs on a 50-minute classroom recording; recommended settings written down; BLUEPRINT open question and the transcription integration decision closed.

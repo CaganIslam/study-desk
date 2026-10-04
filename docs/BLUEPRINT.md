@@ -18,7 +18,7 @@ The first user is the maintainer: a CS student whose courses are taught in Engli
 
 ```
  Moodle ─────── sync on open ──────▶ course folder/slides (PDF) ─▶ slide cache (PNG + text) ─┐
- Voice Memos ── import by time ────▶ transcribe (mlx-whisper, local) ─▶ align to slides ──────┤
+ recordings ── drag and drop ─────▶ transcribe (mlx-whisper, local) ─▶ quality check ─▶ align ─┤
  Board photos ─ import by time ────▶ read board (Claude) ─▶ attach to slide ─────────────────┤
  schedule + syllabus ──────────────▶ course / week matching ───────────────────────────────┤
                                                                                            ▼
@@ -53,7 +53,7 @@ open course ─▶ resume slide ─▶ explanation (prefetched) ─▶ next / I 
 | Milestone 1 - Core study loop | Study a lecture slide by slide in the browser. Includes the input bar, length levels, "I know this", live mode, Moodle sync, resume and terms | The maintainer studies a full lecture with it, and live mode works in class |
 | v0.1 - Public alpha | Someone else can install and use the core loop | README install steps work on a clean user account |
 | Milestone 2 - Term review | Daily spaced repetition, end-of-lecture mini quiz | Review runs daily, typed EN answers are checked |
-| Milestone 3 - Recordings | Voice memos are imported, assigned to a course and transcribed automatically | A recording lands in the right course with no manual step |
+| Milestone 3 - Recordings | Recordings dropped into the app are assigned to a course by their recording time, transcribed and checked | A dropped recording lands in the right course; a broken transcript is reported with a suggested fix |
 | Milestone 4 - Alignment and board photos | Transcript and photos attached to slides. Decks that reach Moodle late are matched afterwards | Each explanation shows what the lecturer said on that slide |
 | Milestone 5 - Books | Textbook chapters linked to syllabus topics and explanations | Explanations link to the right chapter and page |
 | Milestone 6 - Exam mode | Scoped summaries and personal quizzes before an exam | A quiz built from the student's own questions and weak terms |
@@ -66,6 +66,7 @@ Order and dependencies: 0 → 1 → (2, 3 in any order) → 4 (needs 3) → 5 �
 - Claude is called through `claude -p --safe-mode --no-session-persistence --output-format json --json-schema`. Every call is stateless and the server builds its context ([ADR 0002](adr/0002-claude-code-headless-runtime.md)).
 - Personal data lives in a data root outside the repo. The database lives in `~/Library/Application Support/StudyDesk/` ([ADR 0003](adr/0003-personal-data-outside-repo.md)).
 - Audio is never stored. Only transcripts are kept.
+- Every transcript is checked (repeated segments, high compression ratio, minutes covered). A bad one is never used silently: the user is told in plain words and offered a fix, such as a retry with the larger model.
 - Nothing deterministic goes to Claude: Moodle sync, schedule matching and known commands are handled in code.
 - All UI text lives in one strings file from day one (Turkish first).
 
@@ -78,9 +79,8 @@ Order and dependencies: 0 → 1 → (2, 3 in any order) → 4 (needs 3) → 5 �
 - Prefetch depth: 1 or 2 slides ahead (local, prefetch issue).
 - Model per call type, e.g. a faster model in live mode (local, Claude runner issue).
 - ~~Transcription integration~~ Decided in #2: call an `mlx_whisper` already on the PATH as a subprocess, fall back to an optional package extra only when it is missing; the model is reused from the Hugging Face cache.
-- Voice Memos access: Full Disk Access for the server's Python, or a small dedicated helper (decided after the Milestone 0 check).
+- ~~Voice Memos access~~ Decided 2026-10-04: no library access. Recordings are dragged into the app; the course comes from the file's recording time.
 
 ## Open questions
 
-- Does iCloud download new voice memos to the Mac without the Voice Memos app being opened?
 - ~~How accurate is whisper on lecture audio?~~ Answered in phase-0 check 8: readable with `condition_on_previous_text=False`; `initial_prompt` and word timestamps are not used.
