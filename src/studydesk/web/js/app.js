@@ -6,9 +6,11 @@ import { leaveStudy, showStudy } from "./study.js";
 import { initBar } from "./bar.js";
 import { showTerms } from "./terms.js";
 import { leaveDeckless, showDeckless, showLive } from "./live.js";
+import { initDrop, showRecording } from "./recordings.js";
 
 applyStrings();
 initBar();
+initDrop();
 
 // New Moodle files are fetched in the background whenever the app is opened.
 fetch("/api/sync/moodle", { method: "POST" }).catch(() => {});
@@ -24,6 +26,7 @@ async function route() {
     if (page === "course" && a) await showCourse(view, crumbs, a);
     else if (page === "deck" && a) await showStudy(view, crumbs, Number(a), Number(b) || 1);
     else if (page === "terms") await showTerms(view, crumbs, a);
+    else if (page === "recording" && a) await showRecording(view, crumbs, a);
     else if (page === "live" && a === "course" && b) await showDeckless(view, crumbs, b);
     else if (page === "live" && a === "pick" && b) await showLive(view, crumbs, b);
     else if (page === "live" && a) await showStudy(view, crumbs, Number(a), Number(b) || 1, { live: true });

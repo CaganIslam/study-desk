@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Recordings: drop, match, transcribe, check
+- Issue: #19  ·  Milestone: Milestone 3 - Recordings (pulled forward at the maintainer's request)
+- What changed: recordings dropped anywhere in the window or imported with `study-desk import-recordings FOLDER`; course from the recording time (or chosen when it matches no class); transcription on its own worker with the benchmarked mlx_whisper settings; quality check with plain-language reasons and a retry-with-large-model button; transcripts in `<course>/transcripts/` and the database; uploaded audio deleted once transcribed. Recordings list on the Today screen, transcript view.
+- Notes for next time: the maintainer's 22 lecture recordings (858 minutes, 5 courses) were all matched to the right course and transcribed in about 11 minutes; every transcript passed the check (90-98% of the audio covered, at most 126 words a minute). Options picked: the whole window is the drop target; a failed check asks before retrying (the maintainer wanted to be told, not to have it fixed silently).
+
 ## 2026-10-04 - Import study history
 - Issue: #16  ·  Milestone: Milestone 1 - Core study loop
 - What changed: `study-desk import-sessions FILE` imports earlier study sessions (format in `docs/import-format.md`): slide views at the session's date, questions kept with the course, terms with hard/known status. Importing again changes nothing. Terms can now exist without a slide occurrence.
