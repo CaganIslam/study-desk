@@ -152,6 +152,7 @@ async function go(idx) {
   state.idx = Math.min(Math.max(1, idx), slideCount());
   const slide = current();
   history.replaceState(null, "", `#/deck/${state.deckId}/${state.idx}`);
+  api.post("/api/activity", { deck_id: state.deckId, idx: state.idx }).catch(() => {});
   $("slide-img").src = `/api/decks/${state.deckId}/slides/${state.idx}/image?size=view`;
   $("slide-img").alt = slide.title;
   $("slide-title").textContent = slide.title;

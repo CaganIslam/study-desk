@@ -6,14 +6,17 @@ import json
 
 from studydesk.ai.tutor import Exchange
 from studydesk.db import Database
+from studydesk.study import sessions
 
 
-def add(db: Database, deck_id: int, idx: int, question: str, answer_md: str, terms: list[dict]) -> int:
+def add(db: Database, deck_id: int, idx: int, question: str, answer_md: str, terms: list[dict], course_code: str = "") -> int:
     with db.connect() as conn:
-        return conn.execute(
+        new_id = conn.execute(
             "INSERT INTO questions (deck_id, idx, question, answer_md, terms_json) VALUES (?, ?, ?, ?, ?)",
             (deck_id, idx, question, answer_md, json.dumps(terms, ensure_ascii=False)),
         ).lastrowid
+    sessions.index(db, "question", deck_id, idx, course_code, question, answer_md)
+    return new_id
 
 
 def for_slide(db: Database, deck_id: int, idx: int) -> list[dict]:

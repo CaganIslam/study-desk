@@ -356,3 +356,33 @@ main {
   font-weight: 700;
   color: var(--accent);
 }
+
+.resume {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+a.button {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+a.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+ul.plain {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+ul.plain li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}

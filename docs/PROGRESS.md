@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Sessions, resume, notes and search
+- Issue: #11  ·  Milestone: Milestone 1 - Core study loop
+- What changed: slide views recorded; resume point per course and overall ("nerede kaldık", "ml aç" open where you stopped, course page shows it); sessions derived from views; a notes file per finished session; full-text search over explanations and questions ("X nerede geçti"); "bugün ne çalıştım" lists today's sessions.
+- Notes for next time: on real data, search for "regularization" found the slide 13-15 explanations and the earlier question. Option picked: notes assembled from stored data without Claude (free, instant, and the explanations are already Claude's).
+
 ## 2026-10-04 - Input bar
 - Issue: #10  ·  Milestone: Milestone 1 - Core study loop
 - What changed: one bar on every page for questions and commands. Local parser for common commands (51 table-driven cases, many from real past sessions); one Claude call for everything else that answers or picks an action; questions stored per slide and shown under the explanation; "?" mark in the slide strip.

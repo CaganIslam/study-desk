@@ -42,5 +42,16 @@
   "bar.not_here": "Bu komut bir slayt açıkken çalışır.",
   "bar.answer_title": "Cevap",
   "study.questions": "Sorduğun sorular",
-  "error.empty": "Bir şey yazmadın."
+  "error.empty": "Bir şey yazmadın.",
+  "course.resume": "Kaldığın yer: {deck} · {label}. slayt",
+  "course.continue": "Devam et",
+  "summary.title": "Bugün çalıştıkların",
+  "summary.none": "Bugün henüz bir şey çalışmadın.",
+  "summary.session": "{course} · {start}-{end} ({minutes} dk) · {slides} slayt",
+  "summary.questions": "{n} soru",
+  "search.title": "\"{q}\" için sonuçlar",
+  "search.none": "\"{q}\" hiçbir anlatımda ya da soruda geçmiyor.",
+  "search.kind.explanation": "anlatım",
+  "search.kind.question": "soru",
+  "bar.nothing_to_resume": "Henüz kaldığın bir yer yok."
 }
