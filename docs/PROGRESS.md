@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Moodle sync
+- Issue: #5  ·  Milestone: Milestone 1 - Core study loop
+- What changed: background job queue; Moodle sync of course PDFs into `slides/`, triggered when the page opens and the last sync is older than 30 minutes (`POST /api/sync/moodle`, status at `GET`). Token in the macOS Keychain.
+- Notes for next time: first real run downloaded 14 new PDFs across 4 courses, a second run downloaded nothing. Options picked: Keychain over a config file (secret stays out of plain files); PDFs only (decks are what the study loop uses).
+
 ## 2026-10-04 - Courses, schedule and time-to-course matching
 - Issue: #4  ·  Milestone: Milestone 1 - Core study loop
 - What changed: `courses.toml` in the data root (format in `docs/courses-toml.md`) with courses, weekly slots, closures, exams and weekly topics; `match()` picks the attended class with the largest overlap (15-minute tolerance); `/api/courses` and `/api/today` (with the class running now). The `tests` check is now required on `main`.
