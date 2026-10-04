@@ -20,6 +20,7 @@ from studydesk.db import Database
 from studydesk.ingest import moodle
 from studydesk.jobs import JobQueue
 from studydesk.study import explanations
+from studydesk.study.prefetch import InFlight, Prefetcher
 
 WEB_DIR = Path(__file__).parent / "web"
 
@@ -275,8 +276,15 @@ def create_app(
             raise HTTPException(status_code=400, detail="bad_size")
         return FileResponse(decks.render(deck, slide, size, slide_cache), media_type="image/png")
 
+    inflight = InFlight()
+
     def explainer() -> explanations.Explainer:
-        return explanations.Explainer(db, catalog_file.get(), runner, slide_cache, config.language, config.model_default)
+        return explanations.Explainer(
+            db, catalog_file.get(), app.state.runner, slide_cache, config.language, config.model_default, inflight
+        )
+
+    prefetcher = Prefetcher(jobs, explainer)
+    app.state.prefetcher = prefetcher
 
     @app.post("/api/decks/{deck_id}/slides/{idx}/explain")
     def explain(deck_id: int, idx: int, request: ExplainRequest) -> dict:
@@ -286,6 +294,8 @@ def create_app(
             result = explainer().explain(deck_id, idx, request.level, request.variant, request.refresh)
         except ValueError:
             raise HTTPException(status_code=400, detail="bad_level_or_variant") from None
+        if request.variant is None and idx < len(decks.get_slides(db, deck_id)):
+            prefetcher.want(deck_id, idx + 1, request.level)
         return result.as_dict()
 
     @app.put("/api/decks/{deck_id}/slides/{idx}/marks/{mark}")
