@@ -6,6 +6,9 @@ for (const el of document.querySelectorAll("[data-text]")) {
   el.textContent = t(el.dataset.text);
 }
 
+// New Moodle files are fetched in the background whenever the app is opened.
+fetch("/api/sync/moodle", { method: "POST" }).catch(() => {});
+
 const status = document.getElementById("status");
 try {
   const health = await fetch("/api/health").then((r) => r.json());
