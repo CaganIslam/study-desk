@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Project skeleton
+- Issue: #3  ·  Milestone: Milestone 1 - Core study loop
+- What changed: `studydesk` package (uv, Python 3.12), FastAPI app on 127.0.0.1:4620 with `/api/health`, error shape for unknown API paths, config loading, SQLite with numbered migrations, placeholder page with a strings file, pytest suite (12 tests) and a CI test workflow.
+- Notes for next time: config lives in the app directory, not the data root (picked option). Run the server with `uv run study-desk`; set `STUDYDESK_HOME` to a temp dir for throwaway runs.
+
 ## 2026-10-04 - Recordings by drag and drop
 - Issue: #1 (closed, not planned)  ·  Milestone: Milestone 0 - Verification
 - What changed: automatic Voice Memos import dropped at the maintainer's request; recordings are dragged into the app. Checks 6-7 dropped, BLUEPRINT and README updated, transcript quality check added as a cross-cutting rule.

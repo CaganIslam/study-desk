@@ -36,11 +36,11 @@ Data root (personal, outside the repo, path set in config):
     notes/           session summaries
 ```
 
-Database: `~/Library/Application Support/StudyDesk/study.db` (SQLite). A daily copy is kept as a backup.
+Config and database: `~/Library/Application Support/StudyDesk/config.toml` and `study.db` (SQLite). They stay machine-local, outside the data root. `STUDYDESK_HOME` overrides the directory (tests use it). A daily database copy is kept as a backup.
 
 ## Patterns & methods we use
 
-- **Data:** the data root holds the material, the database holds metadata and derived text (slide text, transcripts, explanations, terms). Schema changes are numbered SQL migration files. Full-text search uses FTS5.
+- **Data:** the data root holds the material, the database holds metadata and derived text (slide text, transcripts, explanations, terms). Schema changes are numbered SQL files in `db/migrations/` (`NNNN_name.sql`), each applied in its own transaction at startup. Code opens a connection per unit of work with `Database.connect()` (commit on success, rollback on error). Full-text search uses FTS5.
 - **AI calls:** only `ai/runner.py` starts `claude`. Each call is one process: `claude -p --safe-mode --no-session-persistence --output-format json --json-schema <schema>`. Every call type has a prompt file in `ai/prompts/` and a JSON schema in `ai/schemas/`. The server builds the context: current slide image and text, a short summary of the previous slide, what the lecturer said, known terms, and the Q&A thread for this slide. No conversation state lives in Claude. Calls have a timeout. When Claude is unavailable (limit, network), only AI features degrade.
 - **Background work:** one in-process queue with a single worker, so jobs run in order: sync, import, transcription, alignment, prefetch. Jobs are idempotent and safe to re-run.
 - **API:** JSON under `/api/...`, pages served as static files. Errors return `{"error": {"code", "message"}}` with a proper status code.
