@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Claude runner and tutor prompts
+- Issue: #7  ·  Milestone: Milestone 1 - Core study loop
+- What changed: `ai/runner.py` (one locked-down `claude -p` process per call, image inline, failures mapped to not_installed / not_logged_in / limit / timeout / bad_output / failed, `FakeRunner` for tests); tutor and answer prompts with JSON schemas; length levels (short / normal / detailed) and variants (simpler / example / different / formula); known-term list; previous-slide summary for continuity.
+- Notes for next time: real calls on ML, logic and embedded slides gave correct, well-structured explanations: normal 12-14 s, short 10 s, answer 6.5 s. Options picked: image inline in `stream-json` (no Read turn, no tools); default model = the user's Claude Code default, live mode will pass a faster model.
+
 ## 2026-10-04 - Slide cache
 - Issue: #6  ·  Milestone: Milestone 1 - Core study loop
 - What changed: decks and logical slides indexed from the course folders (`decks`, `slides` tables), animation builds grouped by footer frame numbers or by growing text, cached PNG renders, deck/slide/image/find-by-label endpoints. Decks are re-scanned after a Moodle sync brings new files.
