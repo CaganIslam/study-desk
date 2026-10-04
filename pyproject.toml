@@ -7,6 +7,8 @@ license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
+    "pillow>=12.3.0",
+    "pypdfium2>=5.13.0",
     "uvicorn>=0.30",
 ]
 

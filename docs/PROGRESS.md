@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Slide cache
+- Issue: #6  ·  Milestone: Milestone 1 - Core study loop
+- What changed: decks and logical slides indexed from the course folders (`decks`, `slides` tables), animation builds grouped by footer frame numbers or by growing text, cached PNG renders, deck/slide/image/find-by-label endpoints. Decks are re-scanned after a Moodle sync brings new files.
+- Notes for next time: checked on real decks: labels match what the lecturer calls the slides (ML Lec01 = 33 slides; Lec02 slide 24 = pages 33-35). Scan of all courses 0.3 s, render 0.06-0.13 s. Options picked: two sizes (`view` sharp on screen, `ai` cheaper for Claude); builds collapsed into one slide (labels follow the lecturer).
+
 ## 2026-10-04 - Moodle sync
 - Issue: #5  ·  Milestone: Milestone 1 - Core study loop
 - What changed: background job queue; Moodle sync of course PDFs into `slides/`, triggered when the page opens and the last sync is older than 30 minutes (`POST /api/sync/moodle`, status at `GET`). Token in the macOS Keychain.
