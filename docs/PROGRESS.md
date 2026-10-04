@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Courses, schedule and time-to-course matching
+- Issue: #4  ·  Milestone: Milestone 1 - Core study loop
+- What changed: `courses.toml` in the data root (format in `docs/courses-toml.md`) with courses, weekly slots, closures, exams and weekly topics; `match()` picks the attended class with the largest overlap (15-minute tolerance); `/api/courses` and `/api/today` (with the class running now). The `tests` check is now required on `main`.
+- Notes for next time: options picked: TOML over YAML or `.ics` (no new dependency, same format as config.toml); weekly topics are written in the file, not extracted by Claude yet.
+
 ## 2026-10-04 - Project skeleton
 - Issue: #3  ·  Milestone: Milestone 1 - Core study loop
 - What changed: `studydesk` package (uv, Python 3.12), FastAPI app on 127.0.0.1:4620 with `/api/health`, error shape for unknown API paths, config loading, SQLite with numbered migrations, placeholder page with a strings file, pytest suite (12 tests) and a CI test workflow.
