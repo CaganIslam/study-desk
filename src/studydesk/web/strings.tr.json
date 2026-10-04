@@ -1,0 +1,7 @@
+{
+  "app.title": "Ders Masası",
+  "app.loading": "Yükleniyor…",
+  "app.ready": "Hazır. Henüz çalışılacak bir şey yok.",
+  "app.first_run": "İlk kurulum: ders klasörünü seçmen gerekiyor.",
+  "app.server_down": "Sunucuya ulaşılamıyor."
+}
