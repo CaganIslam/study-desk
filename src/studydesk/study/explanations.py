@@ -12,6 +12,7 @@ from studydesk.ai.runner import Runner
 from studydesk.ai.tutor import LEVELS, VARIANTS, SlideContext, explain_call
 from studydesk.courses import Catalog
 from studydesk.db import Database
+from studydesk.study.prefetch import InFlight
 
 
 class NotFound(LookupError):
@@ -58,7 +59,17 @@ def _row_to_explanation(row, cached: bool) -> Explanation:
 
 
 class Explainer:
-    def __init__(self, db: Database, catalog: Catalog, runner: Runner, cache_dir: Path, language: str, model: str | None = None) -> None:
+    def __init__(
+        self,
+        db: Database,
+        catalog: Catalog,
+        runner: Runner,
+        cache_dir: Path,
+        language: str,
+        model: str | None = None,
+        inflight: InFlight | None = None,
+    ) -> None:
+        self.inflight = inflight or InFlight()
         self.db = db
         self.catalog = catalog
         self.runner = runner
@@ -120,6 +131,17 @@ class Explainer:
             hit = self.cached(deck_id, idx, level, variant)
             if hit:
                 return hit
+        key = f"{deck_id}:{idx}:{level}:{variant or ''}:{self.language}"
+        for _ in range(2):
+            ran, result = self.inflight.run_once(key, lambda: self._generate(deck_id, idx, level, variant))
+            if ran:
+                return result
+            hit = self.cached(deck_id, idx, level, variant)  # another thread just made it
+            if hit:
+                return hit
+        return self._generate(deck_id, idx, level, variant)  # the other thread failed; try ourselves
+
+    def _generate(self, deck_id: int, idx: int, level: str, variant: str | None) -> Explanation:
         ctx = self.context(deck_id, idx)
         if variant == "different":
             base = self.cached(deck_id, idx, level) or self.cached(deck_id, idx, "normal")

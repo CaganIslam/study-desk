@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Prefetch
+- Issue: #9  ·  Milestone: Milestone 1 - Core study loop
+- What changed: the next slide is explained in the background while the current one is read; stale prefetches are skipped; concurrent requests for the same explanation share one Claude call.
+- Notes for next time: on a real deck, slide 27 arrived 4 s after "next" (it was still being prefetched) instead of 13 s. Option picked: depth 1 (cheaper on plan limits; reading a slide takes longer than one explanation).
+
 ## 2026-10-04 - Study screen
 - Issue: #8  ·  Milestone: Milestone 1 - Core study loop
 - What changed: course list, deck list and the study screen (slide, explanation with KaTeX, exam notes, terms, slide strip with known/explained marks, next/previous/jump by lecturer's number, "I know this, skip", length toggle, variants, keyboard shortcuts). Backend: cached explanations, `POST .../explain`, known marks. KaTeX, marked and highlight.js vendored.
