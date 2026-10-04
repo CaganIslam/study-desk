@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Import study history
+- Issue: #16  ·  Milestone: Milestone 1 - Core study loop
+- What changed: `study-desk import-sessions FILE` imports earlier study sessions (format in `docs/import-format.md`): slide views at the session's date, questions kept with the course, terms with hard/known status. Importing again changes nothing. Terms can now exist without a slide occurrence.
+- Notes for next time: the maintainer's eight Claude Code sessions imported as 49 slide views, 42 questions and 74 terms; a second run imported nothing. Option picked: a one-off CLI command (used once per person) rather than a UI button.
+
 ## 2026-10-04 - Starts at login
 - Issue: #15  ·  Milestone: Milestone 1 - Core study loop
 - What changed: `scripts/install.sh` / `uninstall.sh` for a launchd agent that runs the server at login, restarts it when it stops and logs to `~/Library/Logs/StudyDesk/`. Also fixed a flaky live-mode test (two calls for the same slide at different lengths).

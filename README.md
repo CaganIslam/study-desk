@@ -29,6 +29,10 @@ A local-first study companion for university courses. It runs on your Mac as a s
 - Python 3.12+ with [uv](https://docs.astral.sh/uv/), and ffmpeg
 - Optional: a Moodle account with web service access, for automatic course file sync
 
+## Importing earlier study sessions
+
+If you studied with Claude Code (or anything else) before, `study-desk import-sessions history.json` brings those sessions in: where you stopped, what you asked, which terms were hard. The format is in [`docs/import-format.md`](docs/import-format.md).
+
 ## Language
 
 The interface starts in Turkish. The explanation language is a setting, and an English interface is planned.
