@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Today screen
+- Issue: #13  ·  Milestone: Milestone 1 - Core study loop
+- What changed: the home page is now "Bugün": the class running now (with a live mode button), continue where you left off, today's classes with location and weekly topic, exams in the next 30 days with days left, last-studied time and hard-term count, course cards, new Moodle files, minutes studied today. New `/api/overview` (per-course stats, resume, minutes today).
+- Notes for next time: checked in Chrome with the real schedule (Sunday: no classes; 462 Quiz I in 10 days). Option picked: a single page rather than a sidebar on the study screen.
+
 ## 2026-10-04 - Glossary
 - Issue: #12  ·  Milestone: Milestone 1 - Core study loop
 - What changed: terms captured from explanations and answers, statuses new/hard/known, "I know this" marks a slide's terms known and they are no longer re-explained, term card (meaning, exam definition, example, where seen, status buttons, pronunciation), terms page with filters, `T` opens the first term of the explanation. Older explanations are backfilled at startup.

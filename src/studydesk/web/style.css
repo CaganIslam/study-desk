@@ -469,3 +469,45 @@ ul.plain li {
   color: var(--known);
   border-color: var(--known);
 }
+
+/* today */
+.today h2 {
+  margin-top: 0;
+}
+.now,
+.continue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.continue {
+  border-color: var(--line);
+  background: var(--panel);
+}
+.continue a {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.today-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+.today h3 {
+  font-size: 15px;
+  color: var(--muted);
+  margin: 18px 0 4px;
+}
+.card small {
+  margin-top: 4px;
+}
+.small {
+  font-size: 13px;
+}

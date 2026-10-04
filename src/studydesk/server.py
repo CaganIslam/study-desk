@@ -367,6 +367,15 @@ def create_app(
         schedule_notes()
         return {"day": (day or clock().astimezone(catalog_file.get().timezone).date()).isoformat(), "sessions": sessions_of_day(day)}
 
+    @app.get("/api/overview")
+    def overview() -> dict:
+        today_sessions = sessions_of_day(None)
+        return {
+            "courses": sessions.course_overview(db, catalog_file.get()),
+            "resume": sessions.resume(db),
+            "studied_minutes_today": sum(s["minutes"] for s in today_sessions),
+        }
+
     @app.get("/api/search")
     def search(q: str) -> dict:
         return {"q": q, "results": sessions.search(db, q)}

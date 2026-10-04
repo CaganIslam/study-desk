@@ -179,6 +179,41 @@ def note_markdown(info: dict, course_name: str, tz) -> str:
     return "\n".join(lines) + "\n"
 
 
+def course_overview(db: Database, catalog: Catalog) -> list[dict]:
+    """Per course: when it was last studied, how many slides were viewed, and the glossary counts."""
+    with db.connect() as conn:
+        last = {
+            r["course_code"]: r["at"]
+            for r in conn.execute(
+                "SELECT d.course_code, MAX(a.at) AS at FROM activity a JOIN decks d ON d.id = a.deck_id GROUP BY d.course_code"
+            )
+        }
+        viewed = {
+            r["course_code"]: r["n"]
+            for r in conn.execute(
+                "SELECT d.course_code, COUNT(DISTINCT a.deck_id || ':' || a.idx) AS n FROM activity a"
+                " JOIN decks d ON d.id = a.deck_id GROUP BY d.course_code"
+            )
+        }
+        counts: dict[str, dict[str, int]] = {}
+        for r in conn.execute(
+            "SELECT c.course_code, t.status, COUNT(*) AS n FROM terms t JOIN term_courses c ON c.term_id = t.id"
+            " GROUP BY c.course_code, t.status"
+        ):
+            counts.setdefault(r["course_code"], {})[r["status"]] = r["n"]
+    return [
+        {
+            "code": c.code,
+            "name": c.name,
+            "last_studied": last.get(c.code),
+            "slides_viewed": viewed.get(c.code, 0),
+            "hard_terms": counts.get(c.code, {}).get("hard", 0),
+            "known_terms": counts.get(c.code, {}).get("known", 0),
+        }
+        for c in catalog.courses
+    ]
+
+
 def write_due_notes(db: Database, catalog: Catalog, data_root: Path, now: datetime | None = None) -> list[Path]:
     """Write a notes file for every finished session (no activity for 30 minutes) that has none yet."""
     now = now or now_utc()
