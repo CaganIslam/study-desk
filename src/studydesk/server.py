@@ -20,7 +20,7 @@ from studydesk.db import Database
 from studydesk.ingest import moodle
 from studydesk.jobs import JobQueue
 from studydesk.ai.tutor import bar_call
-from studydesk.study import commands, explanations, questions
+from studydesk.study import commands, explanations, questions, sessions
 from studydesk.study.prefetch import InFlight, Prefetcher
 
 WEB_DIR = Path(__file__).parent / "web"
@@ -45,6 +45,11 @@ class CommandRequest(BaseModel):
     level: str = "normal"
 
 
+class ActivityRequest(BaseModel):
+    deck_id: int
+    idx: int
+
+
 class ExplainRequest(BaseModel):
     level: str = "normal"
     variant: str | None = None
@@ -67,6 +72,7 @@ def create_app(
     config = config or load_config()
     db = Database(config.database_path)
     db.migrate()
+    sessions.backfill_index(db)
     catalog_file = CatalogFile(config.data_root)
     jobs = JobQueue()
     make_moodle_client = moodle_client or (lambda: _default_moodle_client(config))
@@ -183,6 +189,7 @@ def create_app(
     @app.post("/api/sync/moodle")
     def moodle_sync(force: bool = False) -> dict:
         """Start a sync in the background when the last one is older than 30 minutes."""
+        schedule_notes()  # opening the app is a good moment to write notes of finished sessions
         state = moodle_status()
         started = False
         if state["configured"] and not state["running"]:
@@ -324,6 +331,39 @@ def create_app(
         explanations.set_mark(db, deck_id, idx, mark, on)
         return {"idx": idx, "marks": explanations.marks(db, deck_id).get(idx, [])}
 
+    def sessions_of_day(day: date | None) -> list[dict]:
+        catalog = catalog_file.get()
+        day = day or clock().astimezone(catalog.timezone).date()
+        start = datetime.combine(day, datetime.min.time(), catalog.timezone)
+        found = sessions.sessions(db, since=start.astimezone(timezone.utc), until=(start + timedelta(days=1)).astimezone(timezone.utc))
+        return [sessions.describe(db, s) for s in found]
+
+    def schedule_notes() -> None:
+        if config.data_root:
+            jobs.submit("session-notes", lambda: sessions.write_due_notes(db, catalog_file.get(), config.data_root))
+
+    app.state.schedule_notes = schedule_notes
+
+    @app.post("/api/activity")
+    def activity(request: ActivityRequest) -> dict:
+        deck_or_404(request.deck_id)
+        slide_or_404(request.deck_id, request.idx)
+        sessions.record_view(db, request.deck_id, request.idx)
+        return {"ok": True}
+
+    @app.get("/api/resume")
+    def resume_point(course: str | None = None) -> dict:
+        return {"resume": sessions.resume(db, course)}
+
+    @app.get("/api/sessions")
+    def day_sessions(day: date | None = None) -> dict:
+        schedule_notes()
+        return {"day": (day or clock().astimezone(catalog_file.get().timezone).date()).isoformat(), "sessions": sessions_of_day(day)}
+
+    @app.get("/api/search")
+    def search(q: str) -> dict:
+        return {"q": q, "results": sessions.search(db, q)}
+
     @app.get("/api/decks/{deck_id}/slides/{idx}/questions")
     def slide_questions(deck_id: int, idx: int) -> dict:
         deck_or_404(deck_id)
@@ -333,6 +373,14 @@ def create_app(
     def resolve_action(action: dict) -> dict:
         """Turn a parsed or Claude-chosen action into something the page can do directly."""
         kind = action.get("type")
+        if kind == "resume":
+            last = sessions.resume(db)
+            return {"type": "open", "course": last["course"], "deck_id": last["deck_id"], "idx": last["idx"]} if last else {"type": "none"}
+        if kind == "today_summary":
+            return {"type": "today_summary", "sessions": sessions_of_day(None)}
+        if kind == "search":
+            query = (action.get("query") or "").strip()
+            return {"type": "search", "query": query, "results": sessions.search(db, query)}
         if kind == "open":
             course = catalog_file.get().by_code(action.get("course") or "")
             if course is None:
@@ -343,6 +391,13 @@ def create_app(
                 deck = commands.resolve_deck(action["lecture"], decks.list_decks(db, course.code), course.code)
                 if deck:
                     resolved["deck_id"] = deck["id"]
+                    last = sessions.resume(db, course.code)
+                    if last and last["deck_id"] == deck["id"]:
+                        resolved["idx"] = last["idx"]
+            elif not action.get("lecture"):
+                last = sessions.resume(db, course.code)
+                if last:
+                    resolved.update(deck_id=last["deck_id"], idx=last["idx"])
             return resolved
         allowed = {"next", "prev", "goto_slide", "set_level", "variant", "know_skip", "home"}
         if kind not in allowed:
@@ -382,7 +437,9 @@ def create_app(
             return {"kind": "action", "action": resolve_action(action), "source": "claude"}
         answer = {"question": question, "answer_md": str(data.get("answer_md", "")), "terms": list(data.get("terms", []))}
         if ctx:
-            answer["id"] = questions.add(db, deck["id"], idx, question, answer["answer_md"], answer["terms"])
+            answer["id"] = questions.add(
+                db, deck["id"], idx, question, answer["answer_md"], answer["terms"], deck["course_code"]
+            )
         return {"kind": "answer", "answer": answer, "action": moved, "idx": idx, "source": "claude"}
 
     # Unknown API paths answer in the API's error shape, not as a missing page.

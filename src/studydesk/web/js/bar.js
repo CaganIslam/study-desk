@@ -70,6 +70,12 @@ async function act(action) {
     case "none":
       show(`<p class="muted">${esc(t("bar.no_course"))}</p>`);
       return;
+    case "today_summary":
+      show(summaryHtml(action.sessions));
+      return;
+    case "search":
+      show(searchHtml(action.query, action.results));
+      return;
     default:
       if (!study.context()) show(`<p class="muted">${esc(t("bar.not_here"))}</p>`);
       else await study.handleAction(action);
@@ -82,6 +88,36 @@ async function answer(result) {
     return;
   }
   show(`<strong>${esc(t("bar.answer_title"))}</strong><div class="md">${renderMarkdown(result.answer.answer_md)}</div>`);
+}
+
+const hhmm = (iso) => new Date(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+
+function summaryHtml(sessions) {
+  if (!sessions.length) return `<p class="muted">${esc(t("summary.none"))}</p>`;
+  return `<strong>${esc(t("summary.title"))}</strong><ul class="plain">${sessions
+    .map((s) => {
+      const line = t("summary.session", {
+        course: s.course,
+        start: hhmm(s.start),
+        end: hhmm(s.end),
+        minutes: s.minutes,
+        slides: s.slides.length,
+      });
+      const extra = s.questions.length ? ` · ${t("summary.questions", { n: s.questions.length })}` : "";
+      const titles = s.slides.slice(0, 6).map((x) => x.title).join(", ");
+      return `<li>${esc(line + extra)}<br><span class="muted">${esc(titles)}${s.slides.length > 6 ? "…" : ""}</span></li>`;
+    })
+    .join("")}</ul>`;
+}
+
+function searchHtml(query, results) {
+  if (!results.length) return `<p class="muted">${esc(t("search.none", { q: query }))}</p>`;
+  return `<strong>${esc(t("search.title", { q: query }))}</strong><ul class="plain">${results
+    .map(
+      (r) => `<li><a href="#/deck/${r.deck_id}/${r.idx}">${esc(r.course_code)} · ${esc(r.label)}. ${esc(r.title)}</a>
+        <span class="muted">(${esc(t(`search.kind.${r.kind}`))})</span><br><span class="muted">${esc(r.snippet)}</span></li>`,
+    )
+    .join("")}</ul>`;
 }
 
 function show(html) {

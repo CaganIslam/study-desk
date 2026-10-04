@@ -12,6 +12,7 @@ from studydesk.ai.runner import Runner
 from studydesk.ai.tutor import LEVELS, VARIANTS, SlideContext, explain_call
 from studydesk.courses import Catalog
 from studydesk.db import Database
+from studydesk.study import sessions
 from studydesk.study.prefetch import InFlight
 
 
@@ -171,6 +172,12 @@ class Explainer:
                     result.duration_ms,
                 ),
             )
+        notes = " ".join(data.get("exam_notes", []))
+        terms = " ".join(f"{t.get('term', '')} {t.get('meaning', '')}" for t in data.get("terms", []))
+        sessions.index(
+            self.db, "explanation", deck_id, idx, deck["course_code"], ctx.title,
+            f"{data.get('explanation_md', '')}\n{notes}\n{terms}",
+        )  # fmt: skip
         return Explanation(
             deck_id=deck_id,
             idx=idx,

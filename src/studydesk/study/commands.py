@@ -14,7 +14,10 @@ from pathlib import Path
 
 from studydesk.courses import Catalog, Course
 
-ACTIONS = ("next", "prev", "goto_slide", "open", "set_level", "variant", "know_skip", "home")
+ACTIONS = ("next", "prev", "goto_slide", "open", "set_level", "variant", "know_skip", "home", "resume", "today_summary", "search")
+RESUME = ("nerede kaldik", "nerde kaldik", "kaldigim yer", "kaldigimiz yer", "kaldigim yerden", "resume")
+TODAY_SUMMARY = ("bugun ne calistim", "bugun ne calistik", "ne calistik", "ne calistim", "bugunun ozeti", "today summary")
+SEARCH = re.compile(r"^(?:ara|search|bul) (.+)$|^(.+?) (?:nerede|nerde) (?:gecti|geciyor|vardi|anlatildi)$")
 
 FILLER = {
     "reis", "abi", "hocam", "lutfen", "hadi", "bi", "bir", "bakalim", "simdi", "su", "sunu", "bunu",
@@ -63,6 +66,7 @@ class Command:
     lecture: str | None = None
     level: str | None = None
     variant: str | None = None
+    query: str | None = None
     extra: dict = field(default_factory=dict)
 
     def as_dict(self) -> dict:
@@ -102,6 +106,14 @@ def parse(text: str, catalog: Catalog, current: Course | None = None) -> Command
     if not tokens:
         return None
     joined = " ".join(tokens)
+
+    if any(p == joined or p == folded for p in RESUME):
+        return Command("resume")
+    if any(p == joined or p == folded for p in TODAY_SUMMARY):
+        return Command("today_summary")
+    found = SEARCH.match(folded)
+    if found:
+        return Command("search", query=(found.group(1) or found.group(2)).strip())
 
     for variant, phrases in VARIANT_PHRASES.items():
         if any(fold(p) in folded for p in phrases) and len(tokens) <= 4:
