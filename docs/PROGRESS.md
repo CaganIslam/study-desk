@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Live mode
+- Issue: #14  ·  Milestone: Milestone 1 - Core study loop
+- What changed: live mode (`#/live`, "canlı" in the bar): newest deck of the class running now, short explanations with the faster model, Moodle every 3 minutes with a "new deck arrived" notice, questions-only page when the deck is not on Moodle. Fixed a crash found by the tests: pdfium is not thread-safe, so all PDF work is now serialised.
+- Notes for next time: the crash would have hit real use (a request and the prefetch worker rendering at once). Options picked: live mode is the study screen with a flag, not a separate page; live model defaults to `sonnet`.
+
 ## 2026-10-04 - Today screen
 - Issue: #13  ·  Milestone: Milestone 1 - Core study loop
 - What changed: the home page is now "Bugün": the class running now (with a live mode button), continue where you left off, today's classes with location and weekly topic, exams in the next 30 days with days left, last-studied time and hard-term count, course cards, new Moodle files, minutes studied today. New `/api/overview` (per-course stats, resume, minutes today).

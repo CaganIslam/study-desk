@@ -148,3 +148,30 @@ def test_missing_things_use_error_shape(client):
     deck_id = client.get("/api/courses/CS 101/decks").json()["decks"][0]["id"]
     assert client.get(f"/api/decks/{deck_id}/slides/99").json()["error"]["code"] == "slide_not_found"
     assert client.get(f"/api/decks/{deck_id}/slides/1/image", params={"size": "huge"}).status_code == 400
+
+
+def test_concurrent_renders_of_the_same_slide_do_not_collide(env, tmp_path):
+    import threading
+
+    db, data, slides = env
+    write(slides / "Lec1.pdf", [["One", "A 1"]])
+    scan(db, Catalog(courses=(COURSE,)), data)
+    deck_id = list_decks(db, "CS 101")[0]["id"]
+    with db.connect() as conn:
+        deck = conn.execute("SELECT * FROM decks WHERE id = ?", (deck_id,)).fetchone()
+    slide = get_slides(db, deck_id)[0]
+    errors = []
+
+    def worker():
+        try:
+            render(deck, slide, "ai", tmp_path / "cache")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert errors == []
+    assert not list((tmp_path / "cache").rglob("*.part"))

@@ -92,5 +92,14 @@
   "time.just_now": "az önce",
   "time.minutes_ago": "{n} dk önce",
   "time.hours_ago": "{n} saat önce",
-  "time.days_ago": "{n} gün önce"
+  "time.days_ago": "{n} gün önce",
+  "live.badge": "CANLI",
+  "live.title": "Canlı mod",
+  "live.no_class": "Şu an ders saati değil. Hangi derse canlı geçmek istiyorsun?",
+  "live.deckless": "{code} · canlı · deste yok",
+  "live.deckless_hint": "Hocanın bu dersteki slaytları Moodle'da yok. Anlamadığını aşağıya yaz; sorular bu derse kaydediliyor, deste gelince slaytlara bağlanacak.",
+  "live.no_questions": "Henüz soru yok.",
+  "live.new_deck": "Moodle'a yeni deste geldi: {name}",
+  "live.open_deck": "Aç",
+  "live.go_deckless": "Destesiz devam et"
 }

@@ -20,7 +20,7 @@
     "action": {
       "type": "object",
       "properties": {
-        "type": {"type": "string", "enum": ["none", "open", "goto_slide", "next", "prev", "set_level", "variant", "know_skip", "home", "resume", "today_summary", "search"]},
+        "type": {"type": "string", "enum": ["none", "open", "goto_slide", "next", "prev", "set_level", "variant", "know_skip", "home", "resume", "today_summary", "search", "live"]},
         "query": {"type": "string"},
         "course": {"type": "string"},
         "lecture": {"type": "string"},

@@ -3,6 +3,7 @@ import { api, enc } from "./api.js";
 import { escapeHtml as esc, highlightCode, renderMarkdown } from "./render.js";
 import { t } from "./strings.js";
 import { openTerm } from "./terms.js";
+import { clearPage, setPage } from "./context.js";
 
 const LEVELS = ["short", "normal", "detailed"];
 const VARIANTS = ["simpler", "example", "different", "formula"];
@@ -28,20 +29,36 @@ let state = null;
 let keyHandler = null;
 const $ = (id) => document.getElementById(id);
 
+const studyPage = {
+  payload: () => (state ? { deck_id: state.deckId, idx: state.idx, level: state.level, live: state.live } : null),
+  showAnswer: (answer, idx) => showAnswer(answer, idx),
+  handleAction: (action) => handleAction(action),
+};
+
 export function leaveStudy() {
   if (keyHandler) document.removeEventListener("keydown", keyHandler);
   keyHandler = null;
-  if (state) clearInterval(state.timer);
+  if (state) {
+    clearInterval(state.timer);
+    clearInterval(state.livePoll);
+  }
+  clearPage(studyPage);
   state = null;
 }
 
-export async function showStudy(view, crumbs, deckId, idx) {
+export async function showStudy(view, crumbs, deckId, idx, options = {}) {
   const listing = await api.get(`/api/decks/${deckId}/slides`);
   const code = listing.deck.code;
-  state = { deckId, idx, listing, code, level: storage.get(`level:${code}`, "normal"), token: 0, timer: null };
-  crumbs.innerHTML = `<a href="#/course/${enc(code)}">${esc(code)}</a><span class="sep">›</span><span>${esc(
-    listing.deck.filename.replace(/\.pdf$/i, ""),
-  )}</span>`;
+  const live = Boolean(options.live);
+  const levelKey = live ? `level-live:${code}` : `level:${code}`;
+  state = { deckId, idx, listing, code, live, levelKey, level: storage.get(levelKey, live ? "short" : "normal"), token: 0, timer: null };
+  setPage(studyPage);
+  crumbs.innerHTML = `${live ? `<span class="live-badge">${esc(t("live.badge"))}</span>` : ""}<a href="#/course/${enc(code)}">${esc(
+    code,
+  )}</a><span class="sep">›</span><span>${esc(listing.deck.filename.replace(/\.pdf$/i, ""))}</span>${
+    live ? `<span class="sep">·</span><a href="#/live/course/${enc(code)}">${esc(t("live.go_deckless"))}</a>` : ""
+  }`;
+  if (live) startLivePoll();
   view.innerHTML = template();
   bind();
   keyHandler = onKey;
@@ -52,6 +69,7 @@ export async function showStudy(view, crumbs, deckId, idx) {
 function template() {
   return `
   <section class="study">
+    <p id="live-news" class="live-news" hidden></p>
     <div class="strip" id="strip"></div>
     <div class="panes">
       <div class="slide-pane">
@@ -101,13 +119,31 @@ function bind() {
 
 const current = () => state.listing.slides[state.idx - 1];
 
-// --- hooks for the input bar --------------------------------------------------
+// --- live mode: Moodle every few minutes, tell when a new deck arrives ------------
 
-export function context() {
-  return state ? { deck_id: state.deckId, idx: state.idx, level: state.level } : null;
+function startLivePoll() {
+  const known = new Set();
+  const poll = async () => {
+    if (!state) return;
+    await api.post("/api/sync/moodle?live=true").catch(() => {});
+    const data = await api.get(`/api/courses/${enc(state.code)}/decks`).catch(() => null);
+    if (!data || !state) return;
+    const fresh = data.decks.filter((d) => known.size && !known.has(d.id));
+    for (const d of data.decks) known.add(d.id);
+    if (fresh.length) {
+      const deck = fresh.at(-1);
+      $("live-news").innerHTML = `${esc(t("live.new_deck", { name: deck.filename.replace(/\.pdf$/i, "") }))}
+        <a class="button primary" href="#/live/${deck.id}/1">${esc(t("live.open_deck"))}</a>`;
+      $("live-news").hidden = false;
+    }
+  };
+  poll();
+  state.livePoll = setInterval(poll, 60_000); // the server only syncs if the last sync is older than 3 minutes
 }
 
-export async function handleAction(action) {
+// --- hooks for the input bar --------------------------------------------------
+
+async function handleAction(action) {
   if (!state) return;
   if (action.type === "next") return next();
   if (action.type === "prev") return go(state.idx - 1);
@@ -120,7 +156,7 @@ export async function handleAction(action) {
   }
 }
 
-export async function showAnswer(answer, idx) {
+async function showAnswer(answer, idx) {
   if (!state) return;
   if (idx && idx !== state.idx) await go(idx);
   current().questions = (current().questions || 0) + 1;
@@ -152,7 +188,7 @@ async function go(idx) {
   if (!state) return;
   state.idx = Math.min(Math.max(1, idx), slideCount());
   const slide = current();
-  history.replaceState(null, "", `#/deck/${state.deckId}/${state.idx}`);
+  history.replaceState(null, "", `#/${state.live ? "live" : "deck"}/${state.deckId}/${state.idx}`);
   api.post("/api/activity", { deck_id: state.deckId, idx: state.idx }).catch(() => {});
   $("slide-img").src = `/api/decks/${state.deckId}/slides/${state.idx}/image?size=view`;
   $("slide-img").alt = slide.title;
@@ -191,7 +227,7 @@ async function unmarkKnown() {
 function setLevel(level) {
   if (!LEVELS.includes(level) || level === state.level) return;
   state.level = level;
-  storage.set(`level:${state.code}`, level);
+  storage.set(state.levelKey, level);
   renderLevels();
   loadExplanation();
 }
@@ -244,7 +280,7 @@ async function loadExplanation(variant = null, refresh = false) {
   const pending = setTimeout(tick, 150); // cached explanations arrive before anything flickers
   state.timer = setInterval(tick, 1000);
   try {
-    const data = await api.post(`/api/decks/${deckId}/slides/${idx}/explain`, { level: state.level, variant, refresh });
+    const data = await api.post(`/api/decks/${deckId}/slides/${idx}/explain`, { level: state.level, variant, refresh, live: state.live });
     if (!state || token !== state.token) return;
     renderExplanation(data, variant);
     state.listing.slides[idx - 1].explained = true;

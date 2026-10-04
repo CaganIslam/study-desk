@@ -5,6 +5,7 @@ import { showCourse } from "./course.js";
 import { leaveStudy, showStudy } from "./study.js";
 import { initBar } from "./bar.js";
 import { showTerms } from "./terms.js";
+import { leaveDeckless, showDeckless, showLive } from "./live.js";
 
 applyStrings();
 initBar();
@@ -17,11 +18,16 @@ const crumbs = document.getElementById("crumbs");
 
 async function route() {
   leaveStudy();
+  leaveDeckless();
   const [page, a, b] = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
   try {
     if (page === "course" && a) await showCourse(view, crumbs, a);
     else if (page === "deck" && a) await showStudy(view, crumbs, Number(a), Number(b) || 1);
     else if (page === "terms") await showTerms(view, crumbs, a);
+    else if (page === "live" && a === "course" && b) await showDeckless(view, crumbs, b);
+    else if (page === "live" && a === "pick" && b) await showLive(view, crumbs, b);
+    else if (page === "live" && a) await showStudy(view, crumbs, Number(a), Number(b) || 1, { live: true });
+    else if (page === "live") await showLive(view, crumbs);
     else await showHome(view, crumbs);
   } catch (error) {
     const key = `error.${error.code}`;

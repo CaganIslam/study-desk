@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import hashlib
 import re
+import threading
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,6 +25,10 @@ from studydesk.courses import Catalog
 from studydesk.db import Database
 
 SIZES = {"view": 2000, "ai": 1280}  # long edge in pixels
+
+# pdfium is not thread-safe: two threads inside it at once crash the process. Requests and the
+# background worker both open PDFs, so every pdfium call goes through this lock.
+PDFIUM_LOCK = threading.Lock()
 _FOOTER_NUMBER = re.compile(r"(?:^|\s)(\d{1,3})\s*$")
 
 
@@ -141,15 +147,16 @@ def scan(db: Database, catalog: Catalog, data_root: Path, course_code: str | Non
                 with db.connect() as conn:
                     conn.execute("UPDATE decks SET mtime = ?, size = ? WHERE id = ?", (stat.st_mtime, stat.st_size, row["id"]))
                 continue
-            try:
-                document = pdfium.PdfDocument(str(pdf_path))
-            except pdfium.PdfiumError:
-                continue  # not a readable PDF; skipped until it changes
-            try:
-                slides, numbered = group_pages(page_texts(document))
-                pages = len(document)
-            finally:
-                document.close()
+            with PDFIUM_LOCK:
+                try:
+                    document = pdfium.PdfDocument(str(pdf_path))
+                except pdfium.PdfiumError:
+                    continue  # not a readable PDF; skipped until it changes
+                try:
+                    slides, numbered = group_pages(page_texts(document))
+                    pages = len(document)
+                finally:
+                    document.close()
             with db.connect() as conn:
                 if row:
                     deck_id = row["id"]
@@ -205,16 +212,21 @@ def render(deck, slide, size: str, cache_dir: Path) -> Path:
     target = cache_dir / deck["sha256"] / f"{slide['last_page']}-{size}.png"
     if target.exists():
         return target
-    document = pdfium.PdfDocument(deck["path"])
-    try:
-        page = document[slide["last_page"]]
-        width, height = page.get_size()
-        scale = SIZES[size] / max(width, height)
-        image = page.render(scale=scale).to_pil()
-    finally:
-        document.close()
+    with PDFIUM_LOCK:
+        if target.exists():  # rendered by another thread while this one waited
+            return target
+        document = pdfium.PdfDocument(deck["path"])
+        try:
+            page = document[slide["last_page"]]
+            width, height = page.get_size()
+            scale = SIZES[size] / max(width, height)
+            image = page.render(scale=scale).to_pil()
+        finally:
+            document.close()
     target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_name(target.name + ".part")
+    # A request and the prefetch worker can render the same slide at once: each writes its own
+    # temporary file, and the atomic rename lets the last one win with identical content.
+    tmp = target.with_name(f"{target.name}.{uuid.uuid4().hex}.part")
     image.save(tmp, format="PNG", optimize=True)
     tmp.replace(target)
     return target

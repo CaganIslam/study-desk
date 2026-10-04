@@ -36,6 +36,26 @@ def for_slide(db: Database, deck_id: int, idx: int) -> list[dict]:
     ]
 
 
+def add_deckless(db: Database, course_code: str, question: str, answer_md: str, terms: list[dict]) -> int:
+    with db.connect() as conn:
+        return conn.execute(
+            "INSERT INTO deckless_questions (course_code, question, answer_md, terms_json) VALUES (?, ?, ?, ?)",
+            (course_code, question, answer_md, json.dumps(terms, ensure_ascii=False)),
+        ).lastrowid
+
+
+def deckless(db: Database, course_code: str, since_utc: str | None = None) -> list[dict]:
+    with db.connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM deckless_questions WHERE course_code = ? AND created_at >= datetime(?) ORDER BY id",
+            (course_code, since_utc or "1970-01-01"),
+        ).fetchall()
+    return [
+        {"id": r["id"], "question": r["question"], "answer_md": r["answer_md"], "terms": json.loads(r["terms_json"]), "created_at": r["created_at"]}
+        for r in rows
+    ]
+
+
 def thread(db: Database, deck_id: int, idx: int) -> tuple[Exchange, ...]:
     return tuple(Exchange(q["question"], q["answer_md"]) for q in for_slide(db, deck_id, idx))
 

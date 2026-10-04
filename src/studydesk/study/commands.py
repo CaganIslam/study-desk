@@ -14,7 +14,7 @@ from pathlib import Path
 
 from studydesk.courses import Catalog, Course
 
-ACTIONS = ("next", "prev", "goto_slide", "open", "set_level", "variant", "know_skip", "home", "resume", "today_summary", "search")
+ACTIONS = ("next", "prev", "goto_slide", "open", "set_level", "variant", "know_skip", "home", "resume", "today_summary", "search", "live")
 RESUME = ("nerede kaldik", "nerde kaldik", "kaldigim yer", "kaldigimiz yer", "kaldigim yerden", "resume")
 TODAY_SUMMARY = ("bugun ne calistim", "bugun ne calistik", "ne calistik", "ne calistim", "bugunun ozeti", "today summary")
 SEARCH = re.compile(r"^(?:ara|search|bul) (.+)$|^(.+?) (?:nerede|nerde) (?:gecti|geciyor|vardi|anlatildi)$")
@@ -30,6 +30,7 @@ WORDS = {
     "prev": {"onceki", "geri", "previous", "back", "oncekine"},
     "home": {"home", "anasayfa", "dersler", "bugun", "courses", "today"},
     "know_skip": {"biliyorum", "biliyom", "know"},
+    "live": {"canli", "live"},
 }
 LEVEL_WORDS = {
     "short": {"kisa", "kisaca", "short"},
@@ -126,9 +127,9 @@ def parse(text: str, catalog: Catalog, current: Course | None = None) -> Command
     if match and (re.search(SLIDE_WORDS, joined) or re.search(r"\b(gec|git|gecelim)\b", folded)):
         return Command("goto_slide", label=str(int(match.group(1))))
 
-    for kind in ("next", "prev", "home", "know_skip"):
+    for kind in ("next", "prev", "home", "know_skip", "live"):
         if tokens[0] in WORDS[kind] and len(tokens) <= 3 and not any(t in WORDS["next"] for t in tokens[1:] if kind != "next"):
-            if all(t in WORDS[kind] or t in {"slayt", "slide", "sayfa", "gec", "bunu"} for t in tokens):
+            if all(t in WORDS[kind] or t in {"slayt", "slide", "sayfa", "gec", "bunu", "mod", "moda", "mode"} for t in tokens):
                 return Command(kind)
 
     for level, names in LEVEL_WORDS.items():
