@@ -70,12 +70,19 @@ def test_live_opens_the_newest_deck_of_the_class_running_now(live_env):
 
 
 def test_live_explanations_use_the_faster_model(live_env):
-    client, _, _, runner = live_env
+    client, app, _, runner = live_env
     deck_id = client.get("/api/live").json()["deck_id"]
     client.post(f"/api/decks/{deck_id}/slides/1/explain", json={"level": "short", "live": True})
     client.post(f"/api/decks/{deck_id}/slides/2/explain", json={"level": "normal"})
-    models = {c.text.split("Slide title: ")[1].split("\n")[0]: c.model for c in runner.calls}
-    assert models["New"] == "sonnet" and models["New 2"] is None
+    app.state.jobs.join()
+    # The live request prefetches slide 2 at "short" in the background; tell calls apart by length too.
+    models = {
+        (c.text.split("Slide title: ")[1].split("\n")[0], "short" if "Length: short" in c.text else "normal"): c.model
+        for c in runner.calls
+    }
+    assert models[("New", "short")] == "sonnet"
+    assert models[("New 2", "short")] == "sonnet"  # the live prefetch
+    assert models[("New 2", "normal")] is None
 
 
 def test_deckless_questions_are_kept_with_the_course(live_env):
