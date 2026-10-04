@@ -2,6 +2,7 @@
 import { api, enc } from "./api.js";
 import { escapeHtml as esc, highlightCode, renderMarkdown } from "./render.js";
 import { t } from "./strings.js";
+import { openTerm } from "./terms.js";
 
 const LEVELS = ["short", "normal", "detailed"];
 const VARIANTS = ["simpler", "example", "different", "formula"];
@@ -279,13 +280,14 @@ function renderExplanation(data, variant) {
   if (data.terms?.length) {
     parts.push(
       `<div class="terms"><strong>${esc(t("study.terms"))}</strong>${data.terms
-        .map((term) => `<span class="term" title="${esc(`${term.definition_en}\n${term.meaning}`)}">${esc(term.term)}</span>`)
+        .map((term) => `<button class="term" data-term="${esc(term.term)}" title="${esc(term.meaning)}">${esc(term.term)}</button>`)
         .join("")}</div>`,
     );
   }
   if (data.idx === slideCount()) parts.push(`<p class="deck-end">${esc(t("study.deck_end"))}</p>`);
   box.innerHTML = parts.join("");
   highlightCode(box);
+  for (const chip of box.querySelectorAll("[data-term]")) chip.onclick = () => openTerm({ name: chip.dataset.term });
   const back = $("back-main");
   if (back) {
     back.onclick = (event) => {
@@ -308,6 +310,10 @@ function onKey(event) {
     1: () => setLevel("short"),
     2: () => setLevel("normal"),
     3: () => setLevel("detailed"),
+    t: () => {
+      const first = document.querySelector("#explanation [data-term]");
+      if (first) openTerm({ name: first.dataset.term });
+    },
   };
   const action = actions[event.key];
   if (action) {

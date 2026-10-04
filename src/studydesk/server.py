@@ -20,7 +20,7 @@ from studydesk.db import Database
 from studydesk.ingest import moodle
 from studydesk.jobs import JobQueue
 from studydesk.ai.tutor import bar_call
-from studydesk.study import commands, explanations, questions, sessions
+from studydesk.study import commands, explanations, questions, sessions, terms
 from studydesk.study.prefetch import InFlight, Prefetcher
 
 WEB_DIR = Path(__file__).parent / "web"
@@ -43,6 +43,10 @@ class CommandRequest(BaseModel):
     deck_id: int | None = None
     idx: int | None = None
     level: str = "normal"
+
+
+class TermUpdate(BaseModel):
+    status: str
 
 
 class ActivityRequest(BaseModel):
@@ -73,6 +77,7 @@ def create_app(
     db = Database(config.database_path)
     db.migrate()
     sessions.backfill_index(db)
+    terms.backfill(db)
     catalog_file = CatalogFile(config.data_root)
     jobs = JobQueue()
     make_moodle_client = moodle_client or (lambda: _default_moodle_client(config))
@@ -329,6 +334,8 @@ def create_app(
         if mark not in MARKS:
             raise HTTPException(status_code=400, detail="bad_mark")
         explanations.set_mark(db, deck_id, idx, mark, on)
+        if mark == "known" and on:
+            terms.mark_slide_known(db, deck_id, idx)
         return {"idx": idx, "marks": explanations.marks(db, deck_id).get(idx, [])}
 
     def sessions_of_day(day: date | None) -> list[dict]:
@@ -363,6 +370,36 @@ def create_app(
     @app.get("/api/search")
     def search(q: str) -> dict:
         return {"q": q, "results": sessions.search(db, q)}
+
+    @app.get("/api/terms")
+    def term_list(course: str | None = None, status: str | None = None, q: str | None = None) -> dict:
+        if status and status not in terms.STATUSES:
+            raise HTTPException(status_code=400, detail="bad_status")
+        return {"terms": terms.list_terms(db, course, status, q)}
+
+    @app.get("/api/terms/lookup")
+    def term_lookup(term: str) -> dict:
+        found = terms.lookup(db, term)
+        if found is None:
+            raise HTTPException(status_code=404, detail="term_not_found")
+        return found
+
+    @app.get("/api/terms/{term_id}")
+    def term_card(term_id: int) -> dict:
+        found = terms.card(db, term_id)
+        if found is None:
+            raise HTTPException(status_code=404, detail="term_not_found")
+        return found
+
+    @app.patch("/api/terms/{term_id}")
+    def term_update(term_id: int, update: TermUpdate) -> dict:
+        try:
+            changed = terms.set_status(db, term_id, update.status)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="bad_status") from None
+        if not changed:
+            raise HTTPException(status_code=404, detail="term_not_found")
+        return terms.card(db, term_id)
 
     @app.get("/api/decks/{deck_id}/slides/{idx}/questions")
     def slide_questions(deck_id: int, idx: int) -> dict:
@@ -440,6 +477,7 @@ def create_app(
             answer["id"] = questions.add(
                 db, deck["id"], idx, question, answer["answer_md"], answer["terms"], deck["course_code"]
             )
+            terms.capture(db, deck["course_code"], answer["terms"], deck["id"], idx, "question")
         return {"kind": "answer", "answer": answer, "action": moved, "idx": idx, "source": "claude"}
 
     # Unknown API paths answer in the API's error shape, not as a missing page.

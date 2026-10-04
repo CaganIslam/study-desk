@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Glossary
+- Issue: #12  ·  Milestone: Milestone 1 - Core study loop
+- What changed: terms captured from explanations and answers, statuses new/hard/known, "I know this" marks a slide's terms known and they are no longer re-explained, term card (meaning, exam definition, example, where seen, status buttons, pronunciation), terms page with filters, `T` opens the first term of the explanation. Older explanations are backfilled at startup.
+- Notes for next time: 24 terms came out of the explanations made so far on real decks. Option picked: dedupe by normalised string (no extra Claude call to merge near-duplicates).
+
 ## 2026-10-04 - Sessions, resume, notes and search
 - Issue: #11  ·  Milestone: Milestone 1 - Core study loop
 - What changed: slide views recorded; resume point per course and overall ("nerede kaldık", "ml aç" open where you stopped, course page shows it); sessions derived from views; a notes file per finished session; full-text search over explanations and questions ("X nerede geçti"); "bugün ne çalıştım" lists today's sessions.
