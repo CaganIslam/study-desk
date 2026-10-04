@@ -119,3 +119,18 @@ def test_backfill_indexes_older_rows_once(app_env):
     assert sessions.backfill_index(db) >= 1
     assert sessions.search(db, "topic 2")
     assert sessions.backfill_index(db) == 0
+
+
+def test_overview_shape_and_stats(app_env):
+    client, _, deck_id = app_env
+    explain(client, deck_id, 1)
+    client.app_state.jobs.join()
+    client.put(f"/api/decks/{deck_id}/slides/1/marks/known")
+    client.post("/api/activity", json={"deck_id": deck_id, "idx": 1})
+    client.post("/api/activity", json={"deck_id": deck_id, "idx": 2})
+    body = client.get("/api/overview").json()
+    assert set(body) == {"courses", "resume", "studied_minutes_today"}
+    course = body["courses"][0]
+    assert set(course) == {"code", "name", "last_studied", "slides_viewed", "hard_terms", "known_terms"}
+    assert (course["slides_viewed"], course["known_terms"], course["hard_terms"]) == (2, 1, 0)
+    assert body["resume"]["idx"] == 2 and body["studied_minutes_today"] >= 1
