@@ -26,7 +26,9 @@ def normalise(term: str) -> str:
     return " ".join(words)
 
 
-def upsert(db: Database, course_code: str, item: dict, deck_id: int, idx: int, source: str, hard: bool = False) -> int | None:
+def upsert(
+    db: Database, course_code: str, item: dict, deck_id: int | None, idx: int | None, source: str, hard: bool = False
+) -> int | None:
     name = str(item.get("term", "")).strip()
     key = normalise(name)
     if not key:
@@ -50,10 +52,11 @@ def upsert(db: Database, course_code: str, item: dict, deck_id: int, idx: int, s
                 (item.get("meaning", ""), item.get("definition_en", ""), item.get("example", ""), int(hard), term_id),
             )
         conn.execute("INSERT OR IGNORE INTO term_courses (term_id, course_code) VALUES (?, ?)", (term_id, course_code))
-        conn.execute(
-            "INSERT OR IGNORE INTO term_occurrences (term_id, deck_id, idx, source) VALUES (?, ?, ?, ?)",
-            (term_id, deck_id, idx, source),
-        )
+        if deck_id is not None and idx is not None:
+            conn.execute(
+                "INSERT OR IGNORE INTO term_occurrences (term_id, deck_id, idx, source) VALUES (?, ?, ?, ?)",
+                (term_id, deck_id, idx, source),
+            )
     return term_id
 
 
