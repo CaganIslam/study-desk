@@ -77,10 +77,10 @@ Order and dependencies: 0 → 1 → (2, 3 in any order) → 4 (needs 3) → 5 �
 - Moodle token storage: macOS Keychain, or a config file with restricted permissions (local, Moodle sync issue).
 - Prefetch depth: 1 or 2 slides ahead (local, prefetch issue).
 - Model per call type, e.g. a faster model in live mode (local, Claude runner issue).
-- Transcription: use an `mlx_whisper` already on the PATH (for example a `uv tool` install) and only fall back to an optional package extra when it is missing. The whisper model is reused from the Hugging Face cache, never downloaded twice (local, Milestone 3).
+- ~~Transcription integration~~ Decided in #2: call an `mlx_whisper` already on the PATH as a subprocess, fall back to an optional package extra only when it is missing; the model is reused from the Hugging Face cache.
 - Voice Memos access: Full Disk Access for the server's Python, or a small dedicated helper (decided after the Milestone 0 check).
 
 ## Open questions
 
 - Does iCloud download new voice memos to the Mac without the Voice Memos app being opened?
-- How accurate is whisper on accented lecture English and on technical terms? Is `initial_prompt` with the slide terms enough?
+- ~~How accurate is whisper on lecture audio?~~ Answered in phase-0 check 8: readable with `condition_on_previous_text=False`; `initial_prompt` and word timestamps are not used.
