@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Study screen
+- Issue: #8  ·  Milestone: Milestone 1 - Core study loop
+- What changed: course list, deck list and the study screen (slide, explanation with KaTeX, exam notes, terms, slide strip with known/explained marks, next/previous/jump by lecturer's number, "I know this, skip", length toggle, variants, keyboard shortcuts). Backend: cached explanations, `POST .../explain`, known marks. KaTeX, marked and highlight.js vendored.
+- Notes for next time: checked in Chrome on a real ML deck: space, B and 1 work, continuity between slides shows up in the text, no console errors. Options picked: plain JS modules (no framework, no build).
+
 ## 2026-10-04 - Claude runner and tutor prompts
 - Issue: #7  ·  Milestone: Milestone 1 - Core study loop
 - What changed: `ai/runner.py` (one locked-down `claude -p` process per call, image inline, failures mapped to not_installed / not_logged_in / limit / timeout / bad_output / failed, `FakeRunner` for tests); tutor and answer prompts with JSON schemas; length levels (short / normal / detailed) and variants (simpler / example / different / formula); known-term list; previous-slide summary for continuity.
