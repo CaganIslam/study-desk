@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Starts at login
+- Issue: #15  ·  Milestone: Milestone 1 - Core study loop
+- What changed: `scripts/install.sh` / `uninstall.sh` for a launchd agent that runs the server at login, restarts it when it stops and logs to `~/Library/Logs/StudyDesk/`. Also fixed a flaky live-mode test (two calls for the same slide at different lengths).
+- Notes for next time: installed on the maintainer's Mac: under launchd the server reads the data root on the Desktop, gets the Moodle token from the Keychain, calls Claude (10 s), and came back 1 s after being killed. Option picked: the port stays in config.toml (default 4620).
+
 ## 2026-10-04 - Live mode
 - Issue: #14  ·  Milestone: Milestone 1 - Core study loop
 - What changed: live mode (`#/live`, "canlı" in the bar): newest deck of the class running now, short explanations with the faster model, Moodle every 3 minutes with a "new deck arrived" notice, questions-only page when the deck is not on Moodle. Fixed a crash found by the tests: pdfium is not thread-safe, so all PDF work is now serialised.

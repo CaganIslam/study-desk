@@ -67,6 +67,11 @@ Config and database: `~/Library/Application Support/StudyDesk/config.toml` and `
 - Never load assets from a CDN at runtime. Vendor them.
 - Commit messages and PRs carry no AI attribution.
 
+## Running it
+
+- `scripts/install.sh` installs the launchd agent `com.studydesk.server` (`~/Library/LaunchAgents/`): it runs `.venv/bin/study-desk` at login, restarts it if it stops (`KeepAlive`, 10 s throttle) and logs to `~/Library/Logs/StudyDesk/server.log`. The agent gets a PATH with the folders of `claude`, `ffmpeg`, `mlx_whisper` and `uv`, because launchd starts processes with a minimal PATH. Re-running the script replaces the running agent. `scripts/uninstall.sh` removes the agent and keeps all data.
+- During development, stop the agent (`launchctl bootout gui/$(id -u)/com.studydesk.server`) or run a second copy with another `port` in a separate `STUDYDESK_HOME`.
+
 ## Tooling
 
 - commit/PR grammar: `<type>(<area>): subject` (see `commitlint.config.js`). The PR title is checked in CI (`lint-pr-title`).
