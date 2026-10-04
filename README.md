@@ -22,6 +22,10 @@ A local-first study companion for university courses. It runs on your Mac as a s
 - Explanations come from [Claude Code](https://docs.claude.com/en/docs/claude-code) running headless (`claude -p`) on your own Claude subscription. For each explanation, the current slide (image and text) and a short context are sent to Claude. Nothing else leaves the machine. [`docs/STACK.md`](docs/STACK.md) lists exactly what goes where.
 - Audio is transcribed locally with [mlx-whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper). The audio itself is not stored, only the transcript.
 
+## Setup (planned for v0.1)
+
+After installing, a setup page opens in the browser: pick your study folder, connect Moodle (it shows where to find your token, and Moodle is optional), tick your courses, and confirm the class times it reads from each syllabus. No config files to write by hand. If you use Claude Code, opening this repo and asking it to set study-desk up runs the installer for you.
+
 ## Requirements (planned)
 
 - macOS on Apple Silicon (local transcription uses MLX).
