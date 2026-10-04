@@ -36,5 +36,11 @@
   "error.bad_output": "Claude'un cevabı okunamadı.",
   "error.failed": "Claude çağrısı başarısız oldu.",
   "error.generic": "Bir şeyler ters gitti.",
-  "bar.placeholder": "Sor ya da yaz: \"462 lec2 aç\", \"bu formül ne\"… (⌘K)"
+  "bar.placeholder": "Sor ya da yaz: \"462 lec2 aç\", \"bu formül ne\"… (⌘K)",
+  "bar.thinking": "Düşünüyor… {s} sn",
+  "bar.no_course": "Böyle bir ders bulamadım.",
+  "bar.not_here": "Bu komut bir slayt açıkken çalışır.",
+  "bar.answer_title": "Cevap",
+  "study.questions": "Sorduğun sorular",
+  "error.empty": "Bir şey yazmadın."
 }

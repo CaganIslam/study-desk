@@ -133,7 +133,7 @@ def test_deck_and_slide_endpoints(client):
     deck = decks["decks"][0]
     assert set(deck) == {"id", "filename", "pages", "slides", "numbered"}
     listing = client.get(f"/api/decks/{deck['id']}/slides").json()
-    assert set(listing) == {"deck", "slides"} and set(listing["slides"][0]) == {"idx", "label", "title", "marks", "explained"}
+    assert set(listing) == {"deck", "slides"} and set(listing["slides"][0]) == {"idx", "label", "title", "marks", "explained", "questions"}
     detail = client.get(f"/api/decks/{deck['id']}/slides/2").json()
     assert set(detail) == {"idx", "label", "title", "text", "pages", "total", "prev", "next"}
     assert detail["pages"] == [2, 3] and detail["prev"] == 1 and detail["next"] == 3

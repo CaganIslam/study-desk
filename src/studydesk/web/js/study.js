@@ -74,6 +74,7 @@ function template() {
         <div class="variants">
           ${VARIANTS.map((v) => `<button data-variant="${v}">${esc(t(`study.variant.${v}`))}</button>`).join("")}
         </div>
+        <div id="questions" class="questions"></div>
       </div>
     </div>
   </section>`;
@@ -98,6 +99,52 @@ function bind() {
 }
 
 const current = () => state.listing.slides[state.idx - 1];
+
+// --- hooks for the input bar --------------------------------------------------
+
+export function context() {
+  return state ? { deck_id: state.deckId, idx: state.idx, level: state.level } : null;
+}
+
+export async function handleAction(action) {
+  if (!state) return;
+  if (action.type === "next") return next();
+  if (action.type === "prev") return go(state.idx - 1);
+  if (action.type === "know_skip") return knowAndSkip();
+  if (action.type === "set_level") return setLevel(action.level);
+  if (action.type === "variant") return loadExplanation(action.variant);
+  if (action.type === "goto_slide") {
+    const found = await api.get(`/api/decks/${state.deckId}/find?label=${enc(action.label)}`);
+    return go(found.idx);
+  }
+}
+
+export async function showAnswer(answer, idx) {
+  if (!state) return;
+  if (idx && idx !== state.idx) await go(idx);
+  current().questions = (current().questions || 0) + 1;
+  renderStrip();
+  await loadQuestions(answer.id);
+}
+
+async function loadQuestions(highlightId = null) {
+  const { deckId, idx } = state;
+  const box = $("questions");
+  const data = await api.get(`/api/decks/${deckId}/slides/${idx}/questions`);
+  if (!state || state.idx !== idx || state.deckId !== deckId) return;
+  if (!data.questions.length) {
+    box.innerHTML = "";
+    return;
+  }
+  box.innerHTML = `<h3>${esc(t("study.questions"))}</h3>${data.questions
+    .map(
+      (q) => `<div class="qa${q.id === highlightId ? " fresh" : ""}">
+        <p class="q">${esc(q.question)}</p><div class="md">${renderMarkdown(q.answer_md)}</div></div>`,
+    )
+    .join("")}`;
+  highlightCode(box);
+  box.querySelector(".fresh")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
 const slideCount = () => state.listing.slides.length;
 
 async function go(idx) {
@@ -114,7 +161,9 @@ async function go(idx) {
   renderStrip();
   renderKnown();
   renderLevels();
-  await loadExplanation();
+  $("questions").innerHTML = "";
+  loadQuestions().catch(() => {});
+  loadExplanation(); // not awaited: moving between slides never waits for Claude
 }
 
 function next() {
@@ -172,6 +221,7 @@ function renderStrip() {
       if (s.idx === state.idx) classes.push("current");
       if (s.marks.includes("known")) classes.push("known");
       else if (s.explained) classes.push("explained");
+      if (s.questions) classes.push("asked");
       return `<button class="${classes.join(" ")}" data-idx="${s.idx}" title="${esc(s.title)}">${esc(s.label)}</button>`;
     })
     .join("");

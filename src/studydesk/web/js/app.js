@@ -3,9 +3,10 @@ import { escapeHtml } from "./render.js";
 import { showHome } from "./home.js";
 import { showCourse } from "./course.js";
 import { leaveStudy, showStudy } from "./study.js";
+import { initBar } from "./bar.js";
 
 applyStrings();
-document.getElementById("bar-input").placeholder = t("bar.placeholder");
+initBar();
 
 // New Moodle files are fetched in the background whenever the app is opened.
 fetch("/api/sync/moodle", { method: "POST" }).catch(() => {});

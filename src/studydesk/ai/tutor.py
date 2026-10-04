@@ -144,3 +144,33 @@ def answer_call(
         model=model,
         effort=effort or "low",
     )
+
+
+def bar_call(
+    ctx: SlideContext | None,
+    message: str,
+    courses: tuple[tuple[str, str, tuple[str, ...]], ...],
+    thread: tuple[Exchange, ...] = (),
+    level: str = "normal",
+    language: str = "tr",
+    model: str | None = None,
+) -> ClaudeCall:
+    """One call that either answers the message or turns it into an app action."""
+    lines = _context_block(ctx) if ctx else ["No slide is open."]
+    if courses:
+        lines.append(
+            "Courses (code: name; aliases):\n"
+            + "\n".join(f"- {code}: {name}; {', '.join(aliases)}" for code, name, aliases in courses)
+        )
+    for exchange in thread[-5:]:
+        lines.append(f"Earlier question: {exchange.question}\nEarlier answer: {exchange.answer}")
+    lines.append(LEVELS[level].replace("Length", "Answer length"))
+    lines.append(f"Message: {message.strip()}")
+    return ClaudeCall(
+        system=_prompt("bar_system").replace("{language}", language_name(language)),
+        text="\n\n".join(lines),
+        schema=_schema("bar"),
+        images=(ctx.image,) if ctx and ctx.image else (),
+        model=model,
+        effort="low",
+    )

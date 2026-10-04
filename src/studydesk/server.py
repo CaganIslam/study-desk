@@ -19,7 +19,8 @@ from studydesk.courses import CatalogFile, Course
 from studydesk.db import Database
 from studydesk.ingest import moodle
 from studydesk.jobs import JobQueue
-from studydesk.study import explanations
+from studydesk.ai.tutor import bar_call
+from studydesk.study import commands, explanations, questions
 from studydesk.study.prefetch import InFlight, Prefetcher
 
 WEB_DIR = Path(__file__).parent / "web"
@@ -35,6 +36,13 @@ def _hhmm(value) -> str | None:
 
 MOODLE_SYNC_INTERVAL = timedelta(minutes=30)
 MARKS = {"known"}
+
+
+class CommandRequest(BaseModel):
+    text: str
+    deck_id: int | None = None
+    idx: int | None = None
+    level: str = "normal"
 
 
 class ExplainRequest(BaseModel):
@@ -226,6 +234,7 @@ def create_app(
         deck = deck_or_404(deck_id)
         marks = explanations.marks(db, deck_id)
         explained = explanations.explained(db, deck_id)
+        asked = questions.counts(db, deck_id)
         return {
             "deck": {"id": deck["id"], "code": deck["course_code"], "filename": Path(deck["path"]).name},
             "slides": [
@@ -235,6 +244,7 @@ def create_app(
                     "title": s["title"],
                     "marks": marks.get(s["idx"], []),
                     "explained": s["idx"] in explained,
+                    "questions": asked.get(s["idx"], 0),
                 }
                 for s in decks.get_slides(db, deck_id)
             ],
@@ -313,6 +323,67 @@ def create_app(
             raise HTTPException(status_code=400, detail="bad_mark")
         explanations.set_mark(db, deck_id, idx, mark, on)
         return {"idx": idx, "marks": explanations.marks(db, deck_id).get(idx, [])}
+
+    @app.get("/api/decks/{deck_id}/slides/{idx}/questions")
+    def slide_questions(deck_id: int, idx: int) -> dict:
+        deck_or_404(deck_id)
+        slide_or_404(deck_id, idx)
+        return {"idx": idx, "questions": questions.for_slide(db, deck_id, idx)}
+
+    def resolve_action(action: dict) -> dict:
+        """Turn a parsed or Claude-chosen action into something the page can do directly."""
+        kind = action.get("type")
+        if kind == "open":
+            course = catalog_file.get().by_code(action.get("course") or "")
+            if course is None:
+                return {"type": "none"}
+            resolved = {"type": "open", "course": course.code, "deck_id": None, "idx": 1}
+            if action.get("lecture") and config.data_root:
+                decks.scan(db, catalog_file.get(), config.data_root, course.code)
+                deck = commands.resolve_deck(action["lecture"], decks.list_decks(db, course.code), course.code)
+                if deck:
+                    resolved["deck_id"] = deck["id"]
+            return resolved
+        allowed = {"next", "prev", "goto_slide", "set_level", "variant", "know_skip", "home"}
+        if kind not in allowed:
+            return {"type": "none"}
+        return {k: v for k, v in action.items() if k in {"type", "label", "level", "variant"} and v}
+
+    @app.post("/api/command")
+    def command(request: CommandRequest) -> dict:
+        text = request.text.strip()
+        if not text:
+            raise HTTPException(status_code=400, detail="empty")
+        catalog = catalog_file.get()
+        deck = decks.get_deck(db, request.deck_id) if request.deck_id else None
+        current = catalog.by_code(deck["course_code"]) if deck else None
+
+        parsed = commands.parse(text, catalog, current)
+        if parsed is not None:
+            return {"kind": "action", "action": resolve_action(parsed.as_dict()), "source": "local"}
+
+        # "14. slayttayız, hoca X diyor, ne o?": go to slide 14, then answer about it.
+        idx, moved = request.idx, None
+        position, question = commands.split_position(text)
+        if position and deck:
+            slide = next((s for s in decks.get_slides(db, deck["id"]) if s["label"] == position), None)
+            if slide:
+                idx, moved = slide["idx"], {"type": "goto_slide", "label": position}
+        ctx = explainer().context(deck["id"], idx) if deck and idx else None
+        thread = questions.thread(db, deck["id"], idx) if ctx else ()
+        level = request.level if request.level in {"short", "normal", "detailed"} else "normal"
+        course_list = tuple((c.code, c.name, c.aliases) for c in catalog.courses)
+        data = app.state.runner.run(
+            bar_call(ctx, question, course_list, thread, level=level, language=config.language, model=config.model_default)
+        ).data
+
+        action = data.get("action") or {}
+        if data.get("kind") == "action" and action.get("type") not in (None, "none"):
+            return {"kind": "action", "action": resolve_action(action), "source": "claude"}
+        answer = {"question": question, "answer_md": str(data.get("answer_md", "")), "terms": list(data.get("terms", []))}
+        if ctx:
+            answer["id"] = questions.add(db, deck["id"], idx, question, answer["answer_md"], answer["terms"])
+        return {"kind": "answer", "answer": answer, "action": moved, "idx": idx, "source": "claude"}
 
     # Unknown API paths answer in the API's error shape, not as a missing page.
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])

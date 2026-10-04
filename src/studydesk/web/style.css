@@ -309,3 +309,50 @@ main {
     opacity: 0.25;
   }
 }
+
+/* input bar and questions */
+.bar-output {
+  max-height: 40vh;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.questions h3 {
+  margin: 18px 0 6px;
+  font-size: 15px;
+  color: var(--muted);
+}
+.qa {
+  padding: 10px 12px;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.qa.fresh {
+  border-color: var(--accent);
+}
+.qa .q {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+.qa .md > :first-child {
+  margin-top: 0;
+}
+.qa .md > :last-child {
+  margin-bottom: 0;
+}
+.chip.asked {
+  position: relative;
+}
+.chip.asked::after {
+  content: "?";
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+}
