@@ -45,7 +45,7 @@ and keep the living docs current.
 - **areas:** `backend, frontend, ingest, ai, devops, docs` (+ `repo` scope for repository configuration)
   - `backend` - FastAPI server, SQLite, sessions, terms, review scheduling
   - `frontend` - the browser pages (plain HTML/CSS/JS, strings files)
-  - `ingest` - Moodle sync, Voice Memos import, transcription, board photos, books
+  - `ingest` - Moodle sync, dropped recordings, transcription, board photos, books
   - `ai` - the `claude -p` runner, prompts and JSON schemas
   - `devops` - launchd agent, install scripts, CI
   - `docs` - README, living docs, ADRs, research notes
