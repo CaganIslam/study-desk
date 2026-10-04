@@ -51,7 +51,7 @@ open course ─▶ resume slide ─▶ explanation (prefetched) ─▶ next / I 
 |---|---|---|
 | Milestone 0 - Verification | Prove the risky assumptions before building on them | All checks recorded in `docs/research/phase-0-verification.md` |
 | Milestone 1 - Core study loop | Study a lecture slide by slide in the browser. Includes the input bar, length levels, "I know this", live mode, Moodle sync, resume and terms | The maintainer studies a full lecture with it, and live mode works in class |
-| v0.1 - Public alpha | Someone else can install and use the core loop | README install steps work on a clean user account |
+| v0.1 - Public alpha | Someone else can install it and connect it to their own courses without help: a first-run setup page (data folder, Moodle connection with token help, courses imported from Moodle, schedule proposed from the syllabus), a Claude Code setup skill, an install guide | A clean user account goes from clone to studying with only the README and the setup page |
 | Milestone 2 - Term review | Daily spaced repetition, end-of-lecture mini quiz | Review runs daily, typed EN answers are checked |
 | Milestone 3 - Recordings | Recordings dropped into the app are assigned to a course by their recording time, transcribed and checked | A dropped recording lands in the right course; a broken transcript is reported with a suggested fix |
 | Milestone 4 - Alignment and board photos | Transcript and photos attached to slides. Decks that reach Moodle late are matched afterwards | Each explanation shows what the lecturer said on that slide |
