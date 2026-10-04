@@ -9,14 +9,17 @@ from typing import Callable
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from studydesk import __version__
 from studydesk.config import Config, ConfigError, load_config
 from studydesk import decks
+from studydesk.ai.runner import ClaudeCLI, ClaudeError, Runner
 from studydesk.courses import CatalogFile, Course
 from studydesk.db import Database
 from studydesk.ingest import moodle
 from studydesk.jobs import JobQueue
+from studydesk.study import explanations
 
 WEB_DIR = Path(__file__).parent / "web"
 
@@ -30,6 +33,13 @@ def _hhmm(value) -> str | None:
 
 
 MOODLE_SYNC_INTERVAL = timedelta(minutes=30)
+MARKS = {"known"}
+
+
+class ExplainRequest(BaseModel):
+    level: str = "normal"
+    variant: str | None = None
+    refresh: bool = False
 
 
 def _default_moodle_client(config: Config) -> moodle.MoodleClient | None:
@@ -43,6 +53,7 @@ def create_app(
     config: Config | None = None,
     now: Callable[[], datetime] | None = None,
     moodle_client: Callable[[], moodle.MoodleClient | None] | None = None,
+    runner: Runner | None = None,
 ) -> FastAPI:
     config = config or load_config()
     db = Database(config.database_path)
@@ -50,12 +61,14 @@ def create_app(
     catalog_file = CatalogFile(config.data_root)
     jobs = JobQueue()
     make_moodle_client = moodle_client or (lambda: _default_moodle_client(config))
+    runner = runner or ClaudeCLI(cwd=config.app_home)
 
     app = FastAPI(title="study-desk", version=__version__)
     app.state.config = config
     app.state.db = db
     app.state.catalog = catalog_file
     app.state.jobs = jobs
+    app.state.runner = runner
 
     def clock() -> datetime:
         return now() if now else datetime.now(catalog_file.get().timezone)
@@ -67,6 +80,10 @@ def create_app(
     async def http_error(_: Request, exc: HTTPException) -> JSONResponse:
         code = exc.detail if isinstance(exc.detail, str) else "error"
         return _error(exc.status_code, code, code.replace("_", " "))
+
+    @app.exception_handler(ClaudeError)
+    async def claude_error(_: Request, exc: ClaudeError) -> JSONResponse:
+        return _error(503, exc.code, str(exc))
 
     @app.exception_handler(ConfigError)
     async def config_error(_: Request, exc: ConfigError) -> JSONResponse:
@@ -206,9 +223,20 @@ def create_app(
     @app.get("/api/decks/{deck_id}/slides")
     def deck_slides(deck_id: int) -> dict:
         deck = deck_or_404(deck_id)
+        marks = explanations.marks(db, deck_id)
+        explained = explanations.explained(db, deck_id)
         return {
             "deck": {"id": deck["id"], "code": deck["course_code"], "filename": Path(deck["path"]).name},
-            "slides": [{"idx": s["idx"], "label": s["label"], "title": s["title"]} for s in decks.get_slides(db, deck_id)],
+            "slides": [
+                {
+                    "idx": s["idx"],
+                    "label": s["label"],
+                    "title": s["title"],
+                    "marks": marks.get(s["idx"], []),
+                    "explained": s["idx"] in explained,
+                }
+                for s in decks.get_slides(db, deck_id)
+            ],
         }
 
     @app.get("/api/decks/{deck_id}/find")
@@ -247,10 +275,47 @@ def create_app(
             raise HTTPException(status_code=400, detail="bad_size")
         return FileResponse(decks.render(deck, slide, size, slide_cache), media_type="image/png")
 
+    def explainer() -> explanations.Explainer:
+        return explanations.Explainer(db, catalog_file.get(), runner, slide_cache, config.language, config.model_default)
+
+    @app.post("/api/decks/{deck_id}/slides/{idx}/explain")
+    def explain(deck_id: int, idx: int, request: ExplainRequest) -> dict:
+        deck_or_404(deck_id)
+        slide_or_404(deck_id, idx)
+        try:
+            result = explainer().explain(deck_id, idx, request.level, request.variant, request.refresh)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="bad_level_or_variant") from None
+        return result.as_dict()
+
+    @app.put("/api/decks/{deck_id}/slides/{idx}/marks/{mark}")
+    def add_mark(deck_id: int, idx: int, mark: str) -> dict:
+        return _change_mark(deck_id, idx, mark, True)
+
+    @app.delete("/api/decks/{deck_id}/slides/{idx}/marks/{mark}")
+    def remove_mark(deck_id: int, idx: int, mark: str) -> dict:
+        return _change_mark(deck_id, idx, mark, False)
+
+    def _change_mark(deck_id: int, idx: int, mark: str, on: bool) -> dict:
+        deck_or_404(deck_id)
+        slide_or_404(deck_id, idx)
+        if mark not in MARKS:
+            raise HTTPException(status_code=400, detail="bad_mark")
+        explanations.set_mark(db, deck_id, idx, mark, on)
+        return {"idx": idx, "marks": explanations.marks(db, deck_id).get(idx, [])}
+
     # Unknown API paths answer in the API's error shape, not as a missing page.
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
     def api_not_found(path: str) -> None:
         raise HTTPException(status_code=404, detail="not_found")
+
+    @app.middleware("http")
+    async def revalidate_pages(request: Request, call_next):
+        # Pages and scripts are revalidated on every load, so an update is never hidden by the browser cache.
+        response = await call_next(request)
+        if not request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-cache"
+        return response
 
     app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
     return app

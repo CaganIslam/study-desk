@@ -49,6 +49,8 @@ Config and database: `~/Library/Application Support/StudyDesk/config.toml` and `
 - **API:** JSON under `/api/...`, pages served as static files. Errors return `{"error": {"code", "message"}}` with a proper status code.
 - **Commands:** the input bar first tries a local parser (course codes and aliases, lecture and slide numbers, next/previous, length, live mode). Only unrecognised input goes to Claude, which either picks an action from a fixed list (JSON) or says it is a question.
 - **Text:** UI strings come from `web/strings.<lang>.json`, never hard-coded in HTML/JS.
+- **Frontend:** plain ES modules in `web/js/` (`app.js` hash router, one module per page, `api.js` for fetch + error shape, `render.js` for markdown + KaTeX). Math is cut out before markdown parsing and rendered with KaTeX; raw HTML in model output is escaped. Pages and scripts are served with `Cache-Control: no-cache`. Per-viewer conveniences (the length level per course) live in `localStorage` behind try/catch.
+- **Explanations:** `study/explanations.py` builds the slide context, calls Claude and caches the result per (slide, level, variant, language) in `explanations`, tied to the deck's hash. The previous slide's cached summary is passed on for continuity.
 - **Naming:** Python `snake_case` modules; tables are plural nouns; branches `<type>/<area>/<slug>-<issue>`.
 - **Tests:** pytest. A contract suite asserts status, shape and field names for every `/api` route, never exact values. A flow suite walks journeys (open course → next → ask → resume). Tests never call the real `claude`: the runner is swapped for a fake that returns schema-valid JSON.
 
