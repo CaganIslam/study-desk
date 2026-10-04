@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-04 - Input bar
+- Issue: #10  ·  Milestone: Milestone 1 - Core study loop
+- What changed: one bar on every page for questions and commands. Local parser for common commands (51 table-driven cases, many from real past sessions); one Claude call for everything else that answers or picks an action; questions stored per slide and shown under the explanation; "?" mark in the slide strip.
+- Notes for next time: checked in Chrome: "462 lec3 aç" opened ML Lec03, "13. slaytta regularization diyor ne o kısa basitçe" moved to slide 13 and answered there. Moving between slides no longer waits for the explanation. Option picked: parser rules in code (testable), not a grammar file.
+
 ## 2026-10-04 - Prefetch
 - Issue: #9  ·  Milestone: Milestone 1 - Core study loop
 - What changed: the next slide is explained in the background while the current one is read; stale prefetches are skipped; concurrent requests for the same explanation share one Claude call.
