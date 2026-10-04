@@ -537,3 +537,31 @@ ul.plain li {
 .live-news[hidden] {
   display: none;
 }
+
+/* recordings */
+.drop-overlay {
+  position: fixed;
+  inset: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px dashed var(--accent);
+  border-radius: 16px;
+  background: rgb(36 86 214 / 0.12);
+  color: var(--accent);
+  font-size: 24px;
+  font-weight: 650;
+  pointer-events: none;
+  z-index: 10;
+}
+.drop-overlay[hidden] {
+  display: none;
+}
+.transcript {
+  max-width: 820px;
+  line-height: 1.7;
+}
+select {
+  font: inherit;
+  margin-top: 4px;
+}

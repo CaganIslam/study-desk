@@ -2,6 +2,7 @@
 import { api, enc } from "./api.js";
 import { escapeHtml as esc } from "./render.js";
 import { t } from "./strings.js";
+import { recordingsSection } from "./recordings.js";
 
 function ago(iso) {
   if (!iso) return null;
@@ -95,6 +96,8 @@ export async function showHome(view, crumbs) {
         <section><h3>${esc(t("today.classes"))}</h3>${classes}</section>
         <section><h3>${esc(t("today.exams"))}</h3>${exams}</section>
       </div>
+      <h3>${esc(t("rec.title"))}</h3>
+      <div id="recordings"></div>
       <h3>${esc(t("today.courses"))}</h3>
       ${courses}
       ${fresh}
@@ -105,4 +108,5 @@ export async function showHome(view, crumbs) {
         }),
       )}</p>
     </div>`;
+  await recordingsSection(document.getElementById("recordings"), overview.courses);
 }

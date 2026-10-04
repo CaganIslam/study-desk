@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -17,7 +18,7 @@ from studydesk import decks
 from studydesk.ai.runner import ClaudeCLI, ClaudeError, Runner
 from studydesk.courses import CatalogFile, Course
 from studydesk.db import Database
-from studydesk.ingest import moodle
+from studydesk.ingest import moodle, recordings
 from studydesk.jobs import JobQueue
 from studydesk.ai.tutor import bar_call
 from studydesk.study import commands, explanations, questions, sessions, terms
@@ -47,6 +48,14 @@ class CommandRequest(BaseModel):
     level: str = "normal"
     course_code: str | None = None  # live mode without a deck
     live: bool = False
+
+
+class CourseChoice(BaseModel):
+    course: str
+
+
+class RetryRequest(BaseModel):
+    model: str = "large"
 
 
 class TermUpdate(BaseModel):
@@ -85,6 +94,7 @@ def create_app(
     terms.backfill(db)
     catalog_file = CatalogFile(config.data_root)
     jobs = JobQueue()
+    transcriber = JobQueue()  # its own worker: a 40-second transcription must not hold up prefetching
     make_moodle_client = moodle_client or (lambda: _default_moodle_client(config))
     runner = runner or ClaudeCLI(cwd=config.app_home)
 
@@ -93,6 +103,9 @@ def create_app(
     app.state.db = db
     app.state.catalog = catalog_file
     app.state.jobs = jobs
+    app.state.transcriber = transcriber
+    app.state.transcribe_fn = None  # tests swap in a fake transcriber
+    app.state.probe_fn = None  # and a fake ffprobe
     app.state.runner = runner
 
     def clock() -> datetime:
@@ -408,6 +421,93 @@ def create_app(
         start = datetime.combine(clock().astimezone(catalog.timezone).date(), datetime.min.time(), catalog.timezone)
         since = start.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         return {"code": code, "questions": questions.deckless(db, code, since)}
+
+    inbox = config.app_home / "inbox"
+
+    def owned(rec) -> bool:
+        return bool(rec["audio_path"]) and Path(rec["audio_path"]).parent == inbox
+
+    def queue_transcription(rec_id: int, model: str = "turbo") -> None:
+        def run() -> None:
+            rec = recordings.get(db, rec_id)
+            if rec is None or not config.data_root:
+                return
+            kwargs = {"transcribe_fn": app.state.transcribe_fn} if app.state.transcribe_fn else {}
+            recordings.process(db, catalog_file.get(), config.data_root, rec_id, model, owned(rec), **kwargs)
+
+        transcriber.submit(f"transcribe:{rec_id}:{model}", run)
+
+    @app.post("/api/recordings")
+    async def upload_recordings(files: list[UploadFile] = File(...)) -> dict:
+        if not config.data_root:
+            raise HTTPException(status_code=409, detail="data_root_missing")
+        inbox.mkdir(parents=True, exist_ok=True)
+        added = []
+        for upload in files:
+            suffix = Path(upload.filename or "").suffix.lower()
+            if suffix not in recordings.AUDIO_SUFFIXES:
+                added.append({"name": upload.filename, "status": "not_audio"})
+                continue
+            target = inbox / f"{uuid.uuid4().hex}{suffix}"
+            with target.open("wb") as handle:
+                while chunk := await upload.read(1 << 20):
+                    handle.write(chunk)
+            try:
+                probe = {"probe_fn": app.state.probe_fn} if app.state.probe_fn else {}
+                rec_id, is_new = recordings.add(db, catalog_file.get(), target, keep_audio_at=target, **probe)
+            except recordings.RecordingError as exc:
+                target.unlink(missing_ok=True)
+                added.append({"name": upload.filename, "status": exc.code})
+                continue
+            if not is_new:
+                target.unlink(missing_ok=True)  # the same recording was dropped before
+            rec = recordings.get(db, rec_id)
+            if is_new and rec["status"] == "queued":
+                queue_transcription(rec_id)
+            added.append({"id": rec_id, "name": upload.filename, "status": rec["status"] if is_new else "duplicate", "course": rec["course_code"]})
+        return {"recordings": added}
+
+    @app.get("/api/recordings")
+    def recording_list() -> dict:
+        return {"recordings": recordings.listing(db, catalog_file.get())}
+
+    def recording_or_404(rec_id: int):
+        rec = recordings.get(db, rec_id)
+        if rec is None:
+            raise HTTPException(status_code=404, detail="recording_not_found")
+        return rec
+
+    @app.post("/api/recordings/{rec_id}/course")
+    def recording_course(rec_id: int, choice: CourseChoice) -> dict:
+        recording_or_404(rec_id)
+        course_or_404(choice.course)
+        recordings.set_course(db, rec_id, choice.course)
+        queue_transcription(rec_id)
+        return {"id": rec_id, "status": "queued"}
+
+    @app.post("/api/recordings/{rec_id}/retry")
+    def recording_retry(rec_id: int, request: RetryRequest) -> dict:
+        rec = recording_or_404(rec_id)
+        if request.model not in recordings.tr.MODELS:
+            raise HTTPException(status_code=400, detail="bad_model")
+        if not rec["audio_path"] or not Path(rec["audio_path"]).exists():
+            raise HTTPException(status_code=409, detail="audio_gone")
+        queue_transcription(rec_id, request.model)
+        return {"id": rec_id, "status": "queued"}
+
+    @app.delete("/api/recordings/{rec_id}")
+    def recording_discard(rec_id: int) -> dict:
+        rec = recording_or_404(rec_id)
+        recordings.discard(db, rec_id, owned_audio=owned(rec))
+        return {"id": rec_id, "deleted": True}
+
+    @app.get("/api/recordings/{rec_id}/transcript")
+    def recording_transcript(rec_id: int) -> dict:
+        recording_or_404(rec_id)
+        text = recordings.transcript(db, rec_id)
+        if text is None:
+            raise HTTPException(status_code=404, detail="transcript_not_ready")
+        return {"id": rec_id, "markdown": text}
 
     @app.get("/api/overview")
     def overview() -> dict:

@@ -15,7 +15,8 @@ Local libraries (no data leaves the machine):
 | Library | Role | License |
 |---|---|---|
 | mlx-whisper | transcription on Apple Silicon | MIT |
-| ffmpeg | audio decoding (reads the AAC track of `.qta` / `.m4a`) | LGPL/GPL (system install) |
+| ffmpeg / ffprobe | audio decoding, recording start time and duration | LGPL/GPL (system install) |
+| python-multipart | receiving dropped recordings | Apache-2.0 |
 | pypdfium2 | slide rendering and text extraction | Apache-2.0 / BSD |
 | Pillow | saving slide renders as PNG | MIT-CMU (HPND) |
 | py-fsrs | spaced-repetition scheduling | MIT |
