@@ -52,13 +52,13 @@ class Prefetcher:
         self.make_explainer = make_explainer
         self.wanted: dict[int, tuple[int, str]] = {}  # deck id -> (slide idx, level)
 
-    def want(self, deck_id: int, idx: int, level: str) -> None:
+    def want(self, deck_id: int, idx: int, level: str, live: bool = False) -> None:
         self.wanted[deck_id] = (idx, level)
 
         def job() -> None:
             if self.wanted.get(deck_id) != (idx, level):
                 return  # the student moved on before this job's turn
-            explainer = self.make_explainer()
+            explainer = self.make_explainer(live)
             if explainer.cached(deck_id, idx, level):
                 return
             try:

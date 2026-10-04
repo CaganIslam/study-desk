@@ -124,7 +124,9 @@ class Explainer:
             known_terms=self.known_terms(deck["course_code"]),
         )
 
-    def explain(self, deck_id: int, idx: int, level: str = "normal", variant: str | None = None, refresh: bool = False) -> Explanation:
+    def explain(
+        self, deck_id: int, idx: int, level: str = "normal", variant: str | None = None, refresh: bool = False
+    ) -> Explanation:
         if level not in LEVELS or (variant is not None and variant not in VARIANTS):
             raise ValueError("bad_level_or_variant")
         if not refresh:

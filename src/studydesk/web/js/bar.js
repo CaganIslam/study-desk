@@ -2,7 +2,7 @@
 import { api } from "./api.js";
 import { escapeHtml as esc, highlightCode, renderMarkdown } from "./render.js";
 import { t } from "./strings.js";
-import * as study from "./study.js";
+import { page } from "./context.js";
 
 const input = document.getElementById("bar-input");
 const output = document.getElementById("bar-output");
@@ -41,8 +41,7 @@ async function submit() {
   const timer = setInterval(tick, 1000);
   input.disabled = true;
   try {
-    const context = study.context();
-    const result = await api.post("/api/command", { text, ...(context ?? {}) });
+    const result = await api.post("/api/command", { text, ...(page()?.payload() ?? {}) });
     if (result.kind === "action") await act(result.action);
     else await answer(result);
   } catch (error) {
@@ -67,6 +66,9 @@ async function act(action) {
     case "home":
       location.hash = "#/";
       return;
+    case "live":
+      location.hash = "#/live";
+      return;
     case "none":
       show(`<p class="muted">${esc(t("bar.no_course"))}</p>`);
       return;
@@ -77,14 +79,14 @@ async function act(action) {
       show(searchHtml(action.query, action.results));
       return;
     default:
-      if (!study.context()) show(`<p class="muted">${esc(t("bar.not_here"))}</p>`);
-      else await study.handleAction(action);
+      if (!page()?.handleAction) show(`<p class="muted">${esc(t("bar.not_here"))}</p>`);
+      else await page().handleAction(action);
   }
 }
 
 async function answer(result) {
-  if (study.context()) {
-    await study.showAnswer(result.answer, result.idx);
+  if (page()?.showAnswer) {
+    await page().showAnswer(result.answer, result.idx);
     return;
   }
   show(`<strong>${esc(t("bar.answer_title"))}</strong><div class="md">${renderMarkdown(result.answer.answer_md)}</div>`);

@@ -35,6 +35,8 @@ def _hhmm(value) -> str | None:
 
 
 MOODLE_SYNC_INTERVAL = timedelta(minutes=30)
+MOODLE_SYNC_INTERVAL_LIVE = timedelta(minutes=3)  # a lecturer may upload the deck during the class
+LIVE_MODEL = "sonnet"  # used in live mode when config.toml sets no [models] live
 MARKS = {"known"}
 
 
@@ -43,6 +45,8 @@ class CommandRequest(BaseModel):
     deck_id: int | None = None
     idx: int | None = None
     level: str = "normal"
+    course_code: str | None = None  # live mode without a deck
+    live: bool = False
 
 
 class TermUpdate(BaseModel):
@@ -58,6 +62,7 @@ class ExplainRequest(BaseModel):
     level: str = "normal"
     variant: str | None = None
     refresh: bool = False
+    live: bool = False
 
 
 def _default_moodle_client(config: Config) -> moodle.MoodleClient | None:
@@ -192,14 +197,15 @@ def create_app(
         return moodle_status()
 
     @app.post("/api/sync/moodle")
-    def moodle_sync(force: bool = False) -> dict:
-        """Start a sync in the background when the last one is older than 30 minutes."""
+    def moodle_sync(force: bool = False, live: bool = False) -> dict:
+        """Start a sync in the background when the last one is older than 30 minutes (3 in live mode)."""
         schedule_notes()  # opening the app is a good moment to write notes of finished sessions
         state = moodle_status()
         started = False
         if state["configured"] and not state["running"]:
             last = datetime.fromisoformat(state["last_sync"]) if state["last_sync"] else None
-            if force or last is None or datetime.now(timezone.utc) - last >= MOODLE_SYNC_INTERVAL:
+            interval = MOODLE_SYNC_INTERVAL_LIVE if live else MOODLE_SYNC_INTERVAL
+            if force or last is None or datetime.now(timezone.utc) - last >= interval:
 
                 def run() -> None:
                     client = make_moodle_client()
@@ -300,10 +306,9 @@ def create_app(
 
     inflight = InFlight()
 
-    def explainer() -> explanations.Explainer:
-        return explanations.Explainer(
-            db, catalog_file.get(), app.state.runner, slide_cache, config.language, config.model_default, inflight
-        )
+    def explainer(live: bool = False) -> explanations.Explainer:
+        model = (config.model_live or LIVE_MODEL) if live else config.model_default
+        return explanations.Explainer(db, catalog_file.get(), app.state.runner, slide_cache, config.language, model, inflight)
 
     prefetcher = Prefetcher(jobs, explainer)
     app.state.prefetcher = prefetcher
@@ -313,11 +318,11 @@ def create_app(
         deck_or_404(deck_id)
         slide_or_404(deck_id, idx)
         try:
-            result = explainer().explain(deck_id, idx, request.level, request.variant, request.refresh)
+            result = explainer(request.live).explain(deck_id, idx, request.level, request.variant, request.refresh)
         except ValueError:
             raise HTTPException(status_code=400, detail="bad_level_or_variant") from None
         if request.variant is None and idx < len(decks.get_slides(db, deck_id)):
-            prefetcher.want(deck_id, idx + 1, request.level)
+            prefetcher.want(deck_id, idx + 1, request.level, request.live)
         return result.as_dict()
 
     @app.put("/api/decks/{deck_id}/slides/{idx}/marks/{mark}")
@@ -366,6 +371,43 @@ def create_app(
     def day_sessions(day: date | None = None) -> dict:
         schedule_notes()
         return {"day": (day or clock().astimezone(catalog_file.get().timezone).date()).isoformat(), "sessions": sessions_of_day(day)}
+
+    def live_target(course_code: str | None) -> dict:
+        """What live mode should open: the class running now (or a chosen course), its newest deck."""
+        catalog = catalog_file.get()
+        current = catalog.current(clock())
+        course = catalog.by_code(course_code) if course_code else (current.course if current else None)
+        if course is None:
+            return {"current": None, "course": None, "deck_id": None, "idx": None}
+        if config.data_root:
+            decks.scan(db, catalog, config.data_root, course.code)
+        with db.connect() as conn:
+            newest = conn.execute(
+                "SELECT id FROM decks WHERE course_code = ? AND path NOT LIKE '%yllabus%' ORDER BY mtime DESC LIMIT 1",
+                (course.code,),
+            ).fetchone()
+        deck_id, idx = (newest["id"], 1) if newest else (None, None)
+        last = sessions.resume(db, course.code)
+        if newest and last and last["deck_id"] == deck_id:
+            idx = last["idx"]
+        return {
+            "current": {"code": current.course.code, "start": _hhmm(current.start), "end": _hhmm(current.end)} if current else None,
+            "course": course.code,
+            "deck_id": deck_id,
+            "idx": idx,
+        }
+
+    @app.get("/api/live")
+    def live(course: str | None = None) -> dict:
+        return live_target(course)
+
+    @app.get("/api/courses/{code}/deckless")
+    def deckless_questions(code: str) -> dict:
+        course_or_404(code)
+        catalog = catalog_file.get()
+        start = datetime.combine(clock().astimezone(catalog.timezone).date(), datetime.min.time(), catalog.timezone)
+        since = start.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        return {"code": code, "questions": questions.deckless(db, code, since)}
 
     @app.get("/api/overview")
     def overview() -> dict:
@@ -445,7 +487,7 @@ def create_app(
                 if last:
                     resolved.update(deck_id=last["deck_id"], idx=last["idx"])
             return resolved
-        allowed = {"next", "prev", "goto_slide", "set_level", "variant", "know_skip", "home"}
+        allowed = {"next", "prev", "goto_slide", "set_level", "variant", "know_skip", "home", "live"}
         if kind not in allowed:
             return {"type": "none"}
         return {k: v for k, v in action.items() if k in {"type", "label", "level", "variant"} and v}
@@ -474,8 +516,15 @@ def create_app(
         thread = questions.thread(db, deck["id"], idx) if ctx else ()
         level = request.level if request.level in {"short", "normal", "detailed"} else "normal"
         course_list = tuple((c.code, c.name, c.aliases) for c in catalog.courses)
+        live_course = catalog.by_code(request.course_code) if request.course_code and not deck else None
+        course_line = (
+            f"Course: {live_course.code} {live_course.name}. The student is in the lecture right now; its slides are not available."
+            if live_course
+            else None
+        )
+        model = (config.model_live or LIVE_MODEL) if request.live else config.model_default
         data = app.state.runner.run(
-            bar_call(ctx, question, course_list, thread, level=level, language=config.language, model=config.model_default)
+            bar_call(ctx, question, course_list, thread, level=level, language=config.language, model=model, course_line=course_line)
         ).data
 
         action = data.get("action") or {}
@@ -487,6 +536,8 @@ def create_app(
                 db, deck["id"], idx, question, answer["answer_md"], answer["terms"], deck["course_code"]
             )
             terms.capture(db, deck["course_code"], answer["terms"], deck["id"], idx, "question")
+        elif live_course:
+            answer["id"] = questions.add_deckless(db, live_course.code, question, answer["answer_md"], answer["terms"])
         return {"kind": "answer", "answer": answer, "action": moved, "idx": idx, "source": "claude"}
 
     # Unknown API paths answer in the API's error shape, not as a missing page.

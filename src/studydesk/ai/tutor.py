@@ -154,9 +154,10 @@ def bar_call(
     level: str = "normal",
     language: str = "tr",
     model: str | None = None,
+    course_line: str | None = None,
 ) -> ClaudeCall:
     """One call that either answers the message or turns it into an app action."""
-    lines = _context_block(ctx) if ctx else ["No slide is open."]
+    lines = _context_block(ctx) if ctx else [course_line or "No slide is open."]
     if courses:
         lines.append(
             "Courses (code: name; aliases):\n"
