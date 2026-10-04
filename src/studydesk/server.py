@@ -7,11 +7,12 @@ from pathlib import Path
 from typing import Callable
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from studydesk import __version__
 from studydesk.config import Config, ConfigError, load_config
+from studydesk import decks
 from studydesk.courses import CatalogFile, Course
 from studydesk.db import Database
 from studydesk.ingest import moodle
@@ -169,9 +170,82 @@ def create_app(
                     else:
                         result = moodle.sync(db, catalog_file.get(), config.data_root, client)
                     moodle.record(db, result)
+                    if result.new or result.updated:
+                        decks.scan(db, catalog_file.get(), config.data_root)
 
                 started = jobs.submit("moodle-sync", run)
         return {**moodle_status(), "started": started}
+
+    slide_cache = config.app_home / "cache" / "slides"
+
+    def course_or_404(code: str) -> Course:
+        course = catalog_file.get().by_code(code)
+        if course is None:
+            raise HTTPException(status_code=404, detail="course_not_found")
+        return course
+
+    def deck_or_404(deck_id: int):
+        deck = decks.get_deck(db, deck_id)
+        if deck is None:
+            raise HTTPException(status_code=404, detail="deck_not_found")
+        return deck
+
+    def slide_or_404(deck_id: int, idx: int):
+        slide = decks.get_slide(db, deck_id, idx)
+        if slide is None:
+            raise HTTPException(status_code=404, detail="slide_not_found")
+        return slide
+
+    @app.get("/api/courses/{code}/decks")
+    def course_decks(code: str) -> dict:
+        course = course_or_404(code)
+        if config.data_root:
+            decks.scan(db, catalog_file.get(), config.data_root, course.code)
+        return {"code": course.code, "decks": decks.list_decks(db, course.code)}
+
+    @app.get("/api/decks/{deck_id}/slides")
+    def deck_slides(deck_id: int) -> dict:
+        deck = deck_or_404(deck_id)
+        return {
+            "deck": {"id": deck["id"], "code": deck["course_code"], "filename": Path(deck["path"]).name},
+            "slides": [{"idx": s["idx"], "label": s["label"], "title": s["title"]} for s in decks.get_slides(db, deck_id)],
+        }
+
+    @app.get("/api/decks/{deck_id}/find")
+    def find_slide(deck_id: int, label: str) -> dict:
+        """The slide the lecturer calls `label` (the footer number), else the one at that position."""
+        deck_or_404(deck_id)
+        slides = decks.get_slides(db, deck_id)
+        match = next((s for s in slides if s["label"] == label.strip()), None)
+        if match is None and label.strip().isdigit():
+            match = next((s for s in slides if s["idx"] == int(label)), None)
+        if match is None:
+            raise HTTPException(status_code=404, detail="slide_not_found")
+        return {"idx": match["idx"], "label": match["label"]}
+
+    @app.get("/api/decks/{deck_id}/slides/{idx}")
+    def slide_detail(deck_id: int, idx: int) -> dict:
+        deck_or_404(deck_id)
+        slide = slide_or_404(deck_id, idx)
+        total = len(decks.get_slides(db, deck_id))
+        return {
+            "idx": slide["idx"],
+            "label": slide["label"],
+            "title": slide["title"],
+            "text": slide["text"],
+            "pages": [slide["first_page"] + 1, slide["last_page"] + 1],
+            "total": total,
+            "prev": idx - 1 if idx > 1 else None,
+            "next": idx + 1 if idx < total else None,
+        }
+
+    @app.get("/api/decks/{deck_id}/slides/{idx}/image")
+    def slide_image(deck_id: int, idx: int, size: str = "view") -> FileResponse:
+        deck = deck_or_404(deck_id)
+        slide = slide_or_404(deck_id, idx)
+        if size not in decks.SIZES:
+            raise HTTPException(status_code=400, detail="bad_size")
+        return FileResponse(decks.render(deck, slide, size, slide_cache), media_type="image/png")
 
     # Unknown API paths answer in the API's error shape, not as a missing page.
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])

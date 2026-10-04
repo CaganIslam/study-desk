@@ -17,6 +17,7 @@ Local libraries (no data leaves the machine):
 | mlx-whisper | transcription on Apple Silicon | MIT |
 | ffmpeg | audio decoding (reads the AAC track of `.qta` / `.m4a`) | LGPL/GPL (system install) |
 | pypdfium2 | slide rendering and text extraction | Apache-2.0 / BSD |
+| Pillow | saving slide renders as PNG | MIT-CMU (HPND) |
 | py-fsrs | spaced-repetition scheduling | MIT |
 | KaTeX, marked, highlight.js | formulas, markdown, code in the browser (vendored) | MIT / BSD |
 
