@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "properties": {
+    "answer_md": {"type": "string"},
+    "terms": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "properties": {
+          "term": {"type": "string"},
+          "meaning": {"type": "string"},
+          "definition_en": {"type": "string"},
+          "example": {"type": "string"}
+        },
+        "required": ["term", "meaning", "definition_en", "example"]
+      }
+    }
+  },
+  "required": ["answer_md", "terms"]
+}

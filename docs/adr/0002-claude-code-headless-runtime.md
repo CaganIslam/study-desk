@@ -17,6 +17,9 @@ Resuming one conversation per lecture (`--resume`) re-sends the growing history 
 - The server builds the context for each call (see ARCHITECTURE.md → AI calls).
 - The next slide's explanation is prepared in the background while the user reads the current one. Explanations are cached per slide and length level.
 
+## Update 2026-10-04
+The image is now passed inside a `stream-json` message and tools are disabled (`--tools ""`), which removed the Read turn. With `--effort low`, a normal explanation takes about 10-14 s on Opus and an answer about 6 s.
+
 ## Consequences
 - No API key, no extra cost beyond the user's plan. Usage counts toward the plan's limits.
 - Continuity between slides has to be supplied explicitly (a short summary of the previous slide, the known-term list).

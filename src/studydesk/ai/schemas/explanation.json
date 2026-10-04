@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "explanation_md": {"type": "string"},
+    "summary": {"type": "string", "description": "One sentence summarising the slide, used as context for the next slide."},
+    "terms": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "properties": {
+          "term": {"type": "string"},
+          "meaning": {"type": "string"},
+          "definition_en": {"type": "string"},
+          "example": {"type": "string"}
+        },
+        "required": ["term", "meaning", "definition_en", "example"]
+      }
+    },
+    "exam_notes": {"type": "array", "maxItems": 3, "items": {"type": "string"}}
+  },
+  "required": ["explanation_md", "summary", "terms", "exam_notes"]
+}
