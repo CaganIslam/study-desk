@@ -388,8 +388,9 @@ ul.plain li {
 }
 
 /* terms */
-.toplink {
+.toplink-button {
   margin-left: auto;
+  font-size: 14px;
 }
 .term-card {
   width: min(560px, calc(100vw - 32px));
@@ -564,4 +565,20 @@ ul.plain li {
 select {
   font: inherit;
   margin-top: 4px;
+}
+
+.dropbox {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 18px;
+  margin-bottom: 8px;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  background: transparent;
+  text-align: center;
+}
+.dropbox:hover {
+  border-color: var(--accent);
 }

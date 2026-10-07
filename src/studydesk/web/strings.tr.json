@@ -125,5 +125,8 @@
   "rec.choose_course": "Bu kayıt hiçbir ders saatine denk gelmiyor. Hangi ders?",
   "rec.open": "Metni aç",
   "rec.none": "Henüz kayıt yok. Ses Kayıtları'ndan bir dersi bu pencereye sürükle.",
-  "rec.transcript": "Ders kaydı"
+  "rec.transcript": "Ders kaydı",
+  "rec.upload_button": "＋ Ses kaydı yükle",
+  "rec.dropbox": "Ses Kayıtları uygulamasından ders kaydını buraya sürükle ya da tıklayıp dosyayı seç",
+  "rec.dropbox_hint": "Kaydın saatine bakıp doğru derse koyar, yazıya döker ve kontrol eder."
 }
