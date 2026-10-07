@@ -11,7 +11,39 @@ function say(html) {
   output.hidden = false;
 }
 
+const ACCEPT = ".qta,.m4a,.mp3,.wav,.aac,.mp4,.mov,audio/*";
+
+async function uploadFiles(files) {
+  if (!files.length) return;
+  say(`<p class="muted">${esc(t("rec.uploading", { n: files.length }))}</p>`);
+  const form = new FormData();
+  for (const file of files) form.append("files", file, file.name);
+  try {
+    const response = await fetch("/api/recordings", { method: "POST", body: form });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message ?? response.statusText);
+    const rows = data.recordings
+      .map((r) => `<li>${esc(r.name)} · ${esc(r.course ?? "")} <span class="pill">${esc(t(`rec.status.${r.status}`))}</span></li>`)
+      .join("");
+    say(`<p>${esc(t("rec.uploaded", { n: files.length }))}</p><ul class="plain">${rows}</ul>`);
+    document.dispatchEvent(new CustomEvent("recordings-changed"));
+  } catch (error) {
+    say(`<p class="error">${esc(error.message || t("error.generic"))}</p>`);
+  }
+}
+
+/** Open the file picker and upload what was chosen. */
+export function pickRecordings() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.multiple = true;
+  input.accept = ACCEPT;
+  input.onchange = () => uploadFiles([...input.files]);
+  input.click();
+}
+
 export function initDrop() {
+  document.getElementById("upload-rec").onclick = pickRecordings;
   const overlay = document.createElement("div");
   overlay.className = "drop-overlay";
   overlay.textContent = t("rec.drop");
@@ -34,23 +66,7 @@ export function initDrop() {
     event.preventDefault();
     depth = 0;
     overlay.hidden = true;
-    const files = [...event.dataTransfer.files];
-    if (!files.length) return;
-    say(`<p class="muted">${esc(t("rec.uploading", { n: files.length }))}</p>`);
-    const form = new FormData();
-    for (const file of files) form.append("files", file, file.name);
-    try {
-      const response = await fetch("/api/recordings", { method: "POST", body: form });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error?.message ?? response.statusText);
-      const rows = data.recordings
-        .map((r) => `<li>${esc(r.name)} · ${esc(r.course ?? "")} <span class="pill">${esc(t(`rec.status.${r.status}`))}</span></li>`)
-        .join("");
-      say(`<p>${esc(t("rec.uploaded", { n: files.length }))}</p><ul class="plain">${rows}</ul>`);
-      document.dispatchEvent(new CustomEvent("recordings-changed"));
-    } catch (error) {
-      say(`<p class="error">${esc(error.message || t("error.generic"))}</p>`);
-    }
+    await uploadFiles([...event.dataTransfer.files]);
   });
 }
 
@@ -60,11 +76,14 @@ export async function recordingsSection(container, courses) {
   const render = async () => {
     if (!container.isConnected) return clearInterval(timer);
     const { recordings } = await api.get("/api/recordings");
+    const dropbox = `<button class="dropbox" id="dropbox"><strong>${esc(t("rec.dropbox"))}</strong>
+      <span class="muted">${esc(t("rec.dropbox_hint"))}</span></button>`;
     if (!recordings.length) {
-      container.innerHTML = `<p class="muted">${esc(t("rec.none"))}</p>`;
+      container.innerHTML = dropbox;
+      document.getElementById("dropbox").onclick = pickRecordings;
       return;
     }
-    container.innerHTML = `<ul class="plain">${recordings
+    container.innerHTML = dropbox + `<ul class="plain">${recordings
       .slice(0, 12)
       .map((r) => {
         const when = new Date(r.started).toLocaleString("tr-TR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -88,6 +107,7 @@ export async function recordingsSection(container, courses) {
           <span class="pill">${esc(t(`rec.status.${r.status}`))}</span> ${extra}</li>`;
       })
       .join("")}</ul>`;
+    document.getElementById("dropbox").onclick = pickRecordings;
     for (const b of container.querySelectorAll("[data-retry]")) {
       b.onclick = async () => {
         await api.post(`/api/recordings/${b.dataset.retry}/retry`, { model: "large" });
