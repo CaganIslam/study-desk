@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from datetime import date
@@ -12,6 +13,7 @@ from studydesk.ai.runner import Runner
 from studydesk.ai.tutor import LEVELS, VARIANTS, SlideContext, explain_call
 from studydesk.courses import Catalog
 from studydesk.db import Database
+from studydesk.ingest import alignment
 from studydesk.study import sessions, terms
 from studydesk.study.prefetch import InFlight
 
@@ -78,14 +80,21 @@ class Explainer:
         self.language = language
         self.model = model
 
+    @staticmethod
+    def notes_sha(notes: str | None) -> str:
+        return hashlib.sha1(notes.encode()).hexdigest()[:16] if notes else ""
+
     def cached(self, deck_id: int, idx: int, level: str, variant: str | None = None) -> Explanation | None:
+        """A stored explanation, unless the deck changed or the lecturer's words for the slide arrived since."""
         deck = decks.get_deck(self.db, deck_id)
         if deck is None:
             return None
+        notes_sha = self.notes_sha(alignment.lecturer_notes(self.db, deck_id, idx))
         with self.db.connect() as conn:
             row = conn.execute(
-                "SELECT * FROM explanations WHERE deck_id = ? AND idx = ? AND level = ? AND variant = ? AND language = ? AND deck_sha = ?",
-                (deck_id, idx, level, variant or "", self.language, deck["sha256"]),
+                "SELECT * FROM explanations WHERE deck_id = ? AND idx = ? AND level = ? AND variant = ? AND language = ?"
+                " AND deck_sha = ? AND notes_sha = ?",
+                (deck_id, idx, level, variant or "", self.language, deck["sha256"], notes_sha),
             ).fetchone()
         return _row_to_explanation(row, cached=True) if row else None
 
@@ -121,6 +130,7 @@ class Explainer:
             image=decks.render(deck, slide, "ai", self.cache_dir),
             week_topic=topic.title if topic else None,
             previous_summary=self._previous_summary(deck_id, idx),
+            lecturer_notes=alignment.lecturer_notes(self.db, deck_id, idx),
             known_terms=self.known_terms(deck["course_code"]),
         )
 
@@ -154,9 +164,9 @@ class Explainer:
         deck = decks.get_deck(self.db, deck_id)
         with self.db.connect() as conn:
             conn.execute(
-                "INSERT INTO explanations (deck_id, idx, level, variant, language, deck_sha, explanation_md, summary, terms_json, exam_notes_json, duration_ms)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                " ON CONFLICT (deck_id, idx, level, variant, language) DO UPDATE SET deck_sha = excluded.deck_sha,"
+                "INSERT INTO explanations (deck_id, idx, level, variant, language, deck_sha, explanation_md, summary, terms_json, exam_notes_json, duration_ms, notes_sha)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                " ON CONFLICT (deck_id, idx, level, variant, language) DO UPDATE SET deck_sha = excluded.deck_sha, notes_sha = excluded.notes_sha,"
                 " explanation_md = excluded.explanation_md, summary = excluded.summary, terms_json = excluded.terms_json,"
                 " exam_notes_json = excluded.exam_notes_json, duration_ms = excluded.duration_ms, created_at = datetime('now')",
                 (
@@ -171,6 +181,7 @@ class Explainer:
                     json.dumps(data.get("terms", []), ensure_ascii=False),
                     json.dumps(data.get("exam_notes", []), ensure_ascii=False),
                     result.duration_ms,
+                    self.notes_sha(ctx.lecturer_notes),
                 ),
             )
         terms.capture(self.db, deck["course_code"], list(data.get("terms", [])), deck_id, idx, "explanation")

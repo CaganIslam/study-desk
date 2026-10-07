@@ -93,6 +93,7 @@ function template() {
         <div class="variants">
           ${VARIANTS.map((v) => `<button data-variant="${v}">${esc(t(`study.variant.${v}`))}</button>`).join("")}
         </div>
+        <div id="lecture" class="lecture"></div>
         <div id="questions" class="questions"></div>
       </div>
     </div>
@@ -164,6 +165,25 @@ async function showAnswer(answer, idx) {
   await loadQuestions(answer.id);
 }
 
+// What the lecturer said and stressed on this slide, from the aligned recordings.
+async function loadLecture() {
+  const { deckId, idx } = state;
+  const data = await api.get(`/api/decks/${deckId}/slides/${idx}/lecture`);
+  if (!state || state.idx !== idx || state.deckId !== deckId) return;
+  if (!data.notes && !data.emphasis.length) return;
+  const stressed = data.emphasis
+    .map((e) => `<li><span class="pill kind-${esc(e.kind)}">${esc(t(`emph.kind.${e.kind}`))}</span> ${esc(e.quote)}</li>`)
+    .join("");
+  const links = data.recordings
+    .map((r) => `<a href="#/recording/${r.id}">${esc(t("lecture.open_recording", { at: r.at }))}</a>`)
+    .join(" · ");
+  $("lecture").innerHTML = `
+    <h3>${esc(t("lecture.title"))}</h3>
+    ${stressed ? `<ul class="plain emphasis">${stressed}</ul>` : ""}
+    ${data.notes ? `<details><summary>${esc(t("lecture.words"))}</summary><p class="muted">${esc(data.notes)}</p></details>` : ""}
+    ${links ? `<p class="small">${links}</p>` : ""}`;
+}
+
 async function loadQuestions(highlightId = null) {
   const { deckId, idx } = state;
   const box = $("questions");
@@ -200,7 +220,9 @@ async function go(idx) {
   renderKnown();
   renderLevels();
   $("questions").innerHTML = "";
+  $("lecture").innerHTML = "";
   loadQuestions().catch(() => {});
+  loadLecture().catch(() => {});
   loadExplanation(); // not awaited: moving between slides never waits for Claude
 }
 
@@ -260,6 +282,7 @@ function renderStrip() {
       if (s.marks.includes("known")) classes.push("known");
       else if (s.explained) classes.push("explained");
       if (s.questions) classes.push("asked");
+      if (s.emphasis) classes.push("stressed");
       return `<button class="${classes.join(" ")}" data-idx="${s.idx}" title="${esc(s.title)}">${esc(s.label)}</button>`;
     })
     .join("");

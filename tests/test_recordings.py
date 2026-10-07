@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import pytest
 from fastapi.testclient import TestClient
 
+from studydesk.ai.runner import FakeRunner
 from studydesk.config import Config
 from studydesk.ingest import recordings
 from studydesk.ingest.transcribe import Segment, Transcript, check, markdown
@@ -55,7 +56,8 @@ def rec_env(home, tmp_path):
     data = tmp_path / "data"
     (data / "CS101").mkdir(parents=True)
     (data / "courses.toml").write_text(COURSES)
-    app = create_app(Config(home=home, data_root=data))
+    # Tests never call the real Claude: alignment after transcription gets an empty answer.
+    app = create_app(Config(home=home, data_root=data), runner=FakeRunner(results=[{"sections": [], "emphasis": []}] * 20))
     # The scenario is in the file's bytes: uploads are stored under random names.
     app.state.probe_fn = lambda path: (SUNDAY_UTC if path.read_bytes().startswith(b"sunday") else TUESDAY_0905_UTC, 600.0)
     results = {"next": good}
@@ -84,6 +86,7 @@ def test_drop_a_recording_and_get_a_transcript(rec_env):
     wait(app)
     listed = client.get("/api/recordings").json()["recordings"][0]
     assert set(listed) >= {"id", "started", "minutes", "course", "status", "reasons", "has_audio"}
+    assert listed["name"] == "lecture.qta", "the name the student knows, not the app's storage name"
     assert listed["status"] == "done" and listed["has_audio"] is False
     files = list((data / "CS101" / "transcripts").glob("*.md"))
     assert len(files) == 1 and files[0].name == "2026-10-06-0905.md"

@@ -582,3 +582,30 @@ select {
 .dropbox:hover {
   border-color: var(--accent);
 }
+
+/* the lecturer's words */
+.lecture h3 {
+  margin: 18px 0 6px;
+  font-size: 15px;
+  color: var(--muted);
+}
+.lecture details p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.emphasis li {
+  border-bottom: none;
+  padding: 4px 0;
+}
+.kind-exam {
+  color: var(--error);
+  border-color: var(--error);
+}
+.kind-homework,
+.kind-admin {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.chip.stressed {
+  box-shadow: inset 0 -3px 0 var(--exam-line);
+}

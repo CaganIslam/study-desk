@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "properties": {
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "start": {"type": "string"},
+          "end": {"type": "string"},
+          "deck": {"type": "string"},
+          "label": {"type": "string"},
+          "topic": {"type": "string"}
+        },
+        "required": ["start", "end", "deck", "label", "topic"]
+      }
+    },
+    "emphasis": {
+      "type": "array",
+      "maxItems": 15,
+      "items": {
+        "type": "object",
+        "properties": {
+          "at": {"type": "string"},
+          "kind": {"type": "string", "enum": ["exam", "homework", "important", "admin"]},
+          "quote": {"type": "string"}
+        },
+        "required": ["at", "kind", "quote"]
+      }
+    }
+  },
+  "required": ["sections", "emphasis"]
+}

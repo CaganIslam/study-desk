@@ -75,6 +75,36 @@ def import_recordings(paths: list[Path], model: str = "turbo") -> None:
         )
 
 
+def align_recordings(force: bool = False) -> None:
+    """Match transcripts to slides (one Claude call per recording)."""
+    from studydesk.ai.runner import ClaudeCLI, ClaudeError
+    from studydesk.courses import CatalogFile
+    from studydesk.db import Database
+    from studydesk.ingest import alignment
+
+    config = load_config()
+    db = Database(config.database_path)
+    db.migrate()
+    catalog = CatalogFile(config.data_root).get()
+    with db.connect() as conn:
+        todo = (
+            [r["id"] for r in conn.execute("SELECT id FROM recordings WHERE status = 'done' ORDER BY started_at")]
+            if force
+            else alignment.unaligned(db)
+        )
+    runner = ClaudeCLI(cwd=config.app_home)
+    for number, rec_id in enumerate(todo, start=1):
+        with db.connect() as conn:
+            rec = conn.execute("SELECT source_name, course_code FROM recordings WHERE id = ?", (rec_id,)).fetchone()
+        try:
+            stats = alignment.align(db, catalog, runner, rec_id, config.model_default)
+            print(f"[{number}/{len(todo)}] {rec['source_name']} ({rec['course_code']}): {stats}")
+        except ClaudeError as exc:
+            print(f"[{number}/{len(todo)}] {rec['source_name']}: {exc.code} {exc}")
+            if exc.code in ("limit", "not_logged_in", "not_installed"):
+                break
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="study-desk")
     commands = parser.add_subparsers(dest="command")
@@ -83,8 +113,12 @@ def main(argv: list[str] | None = None) -> None:
     rec = commands.add_parser("import-recordings", help="transcribe lecture recordings from a folder or files")
     rec.add_argument("paths", type=Path, nargs="+")
     rec.add_argument("--model", default="turbo", choices=["turbo", "large"])
+    align = commands.add_parser("align-recordings", help="match transcripts to slides with Claude")
+    align.add_argument("--force", action="store_true", help="align again even if already aligned")
     args = parser.parse_args(argv)
-    if args.command == "import-sessions":
+    if args.command == "align-recordings":
+        align_recordings(args.force)
+    elif args.command == "import-sessions":
         import_sessions(args.file)
     elif args.command == "import-recordings":
         import_recordings(args.paths, args.model)
