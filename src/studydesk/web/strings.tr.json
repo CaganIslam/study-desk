@@ -128,5 +128,14 @@
   "rec.transcript": "Ders kaydı",
   "rec.upload_button": "＋ Ses kaydı yükle",
   "rec.dropbox": "Ses Kayıtları uygulamasından ders kaydını buraya sürükle ya da tıklayıp dosyayı seç",
-  "rec.dropbox_hint": "Kaydın saatine bakıp doğru derse koyar, yazıya döker ve kontrol eder."
+  "rec.dropbox_hint": "Kaydın saatine bakıp doğru derse koyar, yazıya döker ve kontrol eder.",
+  "lecture.title": "Hoca bu slaytta",
+  "lecture.words": "Hocanın bu slayttaki sözleri (otomatik metin)",
+  "lecture.open_recording": "Ders kaydının metni ({at})",
+  "emph.title": "Hocanın vurguladıkları",
+  "emph.kind.exam": "sınav",
+  "emph.kind.homework": "ödev",
+  "emph.kind.important": "önemli",
+  "emph.kind.admin": "duyuru",
+  "emph.none": "Henüz yok. Ders kayıtları eklendikçe burası dolacak."
 }

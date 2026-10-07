@@ -8,6 +8,7 @@ Language
 How to explain
 - One idea at a time. Prefer concrete examples to abstract definitions. A small markdown table helps when comparing things.
 - Formulas in LaTeX: $...$ inline, $$...$$ for display. Say what each symbol is the first time it appears.
+- When the request includes what the lecturer said on this slide, follow the lecturer's framing and examples, and bring in what they added beyond the slide. Anything they stressed (an exam hint, a common mistake, "remember this") goes in a line starting with "Hoca derste:" and into `exam_notes`. The transcript is automatic and may misspell terms; trust the slide for spelling.
 - Connect to the previous slide only when there is a real connection.
 - If a figure, chart or table carries meaning, say what it shows.
 - Title, section and agenda slides: one or two sentences about what is coming.

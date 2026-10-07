@@ -18,7 +18,7 @@ from studydesk import decks
 from studydesk.ai.runner import ClaudeCLI, ClaudeError, Runner
 from studydesk.courses import CatalogFile, Course
 from studydesk.db import Database
-from studydesk.ingest import moodle, recordings
+from studydesk.ingest import alignment, moodle, recordings
 from studydesk.jobs import JobQueue
 from studydesk.ai.tutor import bar_call
 from studydesk.study import commands, explanations, questions, sessions, terms
@@ -229,6 +229,10 @@ def create_app(
                     moodle.record(db, result)
                     if result.new or result.updated:
                         decks.scan(db, catalog_file.get(), config.data_root)
+                        # A deck that arrived after its lecture: try matching that course's recordings again.
+                        for code in {item.split("/")[0] for item in result.new + result.updated}:
+                            for rec_id in alignment.needing_realign(db, code):
+                                queue_alignment(rec_id)
 
                 started = jobs.submit("moodle-sync", run)
         return {**moodle_status(), "started": started}
@@ -266,6 +270,7 @@ def create_app(
         marks = explanations.marks(db, deck_id)
         explained = explanations.explained(db, deck_id)
         asked = questions.counts(db, deck_id)
+        stressed = alignment.emphasis_counts(db, deck_id)
         return {
             "deck": {"id": deck["id"], "code": deck["course_code"], "filename": Path(deck["path"]).name},
             "slides": [
@@ -276,6 +281,7 @@ def create_app(
                     "marks": marks.get(s["idx"], []),
                     "explained": s["idx"] in explained,
                     "questions": asked.get(s["idx"], 0),
+                    "emphasis": stressed.get(s["idx"], 0),
                 }
                 for s in decks.get_slides(db, deck_id)
             ],
@@ -433,9 +439,20 @@ def create_app(
             if rec is None or not config.data_root:
                 return
             kwargs = {"transcribe_fn": app.state.transcribe_fn} if app.state.transcribe_fn else {}
-            recordings.process(db, catalog_file.get(), config.data_root, rec_id, model, owned(rec), **kwargs)
+            status = recordings.process(db, catalog_file.get(), config.data_root, rec_id, model, owned(rec), **kwargs)
+            if status == "done":
+                align_now(rec_id)
 
         transcriber.submit(f"transcribe:{rec_id}:{model}", run)
+
+    def align_now(rec_id: int) -> None:
+        try:
+            alignment.align(db, catalog_file.get(), app.state.runner, rec_id, config.model_default)
+        except ClaudeError:
+            pass  # stays unaligned; "align" retries it
+
+    def queue_alignment(rec_id: int) -> None:
+        transcriber.submit(f"align:{rec_id}", lambda: align_now(rec_id))
 
     @app.post("/api/recordings")
     async def upload_recordings(files: list[UploadFile] = File(...)) -> dict:
@@ -454,7 +471,9 @@ def create_app(
                     handle.write(chunk)
             try:
                 probe = {"probe_fn": app.state.probe_fn} if app.state.probe_fn else {}
-                rec_id, is_new = recordings.add(db, catalog_file.get(), target, keep_audio_at=target, **probe)
+                rec_id, is_new = recordings.add(
+                    db, catalog_file.get(), target, keep_audio_at=target, source_name=Path(upload.filename or target.name).name, **probe
+                )
             except recordings.RecordingError as exc:
                 target.unlink(missing_ok=True)
                 added.append({"name": upload.filename, "status": exc.code})
@@ -500,6 +519,26 @@ def create_app(
         rec = recording_or_404(rec_id)
         recordings.discard(db, rec_id, owned_audio=owned(rec))
         return {"id": rec_id, "deleted": True}
+
+    @app.post("/api/recordings/{rec_id}/align")
+    def recording_align(rec_id: int) -> dict:
+        recording_or_404(rec_id)
+        queue_alignment(rec_id)
+        return {"id": rec_id, "queued": True}
+
+    @app.get("/api/decks/{deck_id}/slides/{idx}/lecture")
+    def slide_lecture(deck_id: int, idx: int) -> dict:
+        deck_or_404(deck_id)
+        slide_or_404(deck_id, idx)
+        return {
+            "notes": alignment.lecturer_notes(db, deck_id, idx),
+            "emphasis": alignment.emphasis_for_slide(db, deck_id, idx),
+            "recordings": alignment.slide_recordings(db, deck_id, idx),
+        }
+
+    @app.get("/api/emphasis")
+    def emphasis_list() -> dict:
+        return {"emphasis": alignment.recent_emphasis(db)}
 
     @app.get("/api/recordings/{rec_id}/transcript")
     def recording_transcript(rec_id: int) -> dict:

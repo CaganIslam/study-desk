@@ -62,6 +62,7 @@ def add(
     path: Path,
     keep_audio_at: Path | None = None,
     probe_fn: Callable[[Path], tuple[datetime, float]] | None = None,
+    source_name: str | None = None,
 ) -> tuple[int, bool]:
     """Register a recording. Returns (id, is_new). `keep_audio_at` is the app's own copy, deleted after transcription."""
     sha = _sha256(path)
@@ -77,7 +78,7 @@ def add(
             " VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 sha,
-                path.name,
+                source_name or path.name,
                 started.isoformat(timespec="seconds"),
                 duration,
                 course.code if course else None,

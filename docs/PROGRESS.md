@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-07 - The lecturer's words on every slide
+- Issue: #20 (transcript part; board photos and moving deckless questions to slides are still open)  ·  Milestone: Milestone 4 - Alignment and board photos
+- What changed: one Claude call per recording matches the transcript to slides and pulls out what the lecturer stressed. Explanations now include the lecturer's words for the slide ("Hoca derste: ...") and are regenerated once those words arrive; the study screen shows a "Hoca bu slaytta" panel (emphasis, the transcript excerpt, a link to the recording); the Today screen lists exam and homework hints; recordings are aligned again when a late deck arrives. Uploaded recordings keep their own file name. A test guard now fails any test that would start the real `claude`.
+- Notes for next time: all 24 real recordings aligned (about 20-40 s each): 313 slides now carry the lecturer's words, 131 emphasis items (22 exam, 14 homework), e.g. CMPE 580 "natural deduction proofs must not use De Morgan's rules". The IE 310 recording of 2 October matched no slide (no deck for it yet); it will be aligned again when one arrives.
+
 ## 2026-10-04 - Recordings: drop, match, transcribe, check
 - Issue: #19  ·  Milestone: Milestone 3 - Recordings (pulled forward at the maintainer's request)
 - What changed: recordings dropped anywhere in the window or imported with `study-desk import-recordings FOLDER`; course from the recording time (or chosen when it matches no class); transcription on its own worker with the benchmarked mlx_whisper settings; quality check with plain-language reasons and a retry-with-large-model button; transcripts in `<course>/transcripts/` and the database; uploaded audio deleted once transcribed. Recordings list on the Today screen, transcript view.

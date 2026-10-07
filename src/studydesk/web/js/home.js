@@ -28,10 +28,11 @@ export async function showHome(view, crumbs) {
     view.innerHTML = `<p class="muted">${esc(t("app.first_run"))}</p>`;
     return;
   }
-  const [today, overview, sync] = await Promise.all([
+  const [today, overview, sync, emphasis] = await Promise.all([
     api.get("/api/today"),
     api.get("/api/overview"),
     api.get("/api/sync/moodle"),
+    api.get("/api/emphasis"),
   ]);
   if (!overview.courses.length) {
     view.innerHTML = `<p class="muted">${esc(t("app.no_courses"))}</p>`;
@@ -81,6 +82,16 @@ export async function showHome(view, crumbs) {
     )
     .join("")}</ul>`;
 
+  const stressed = emphasis.emphasis.length
+    ? `<ul class="plain emphasis">${emphasis.emphasis
+        .map((e) => {
+          const when = new Date(e.started).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+          return `<li><span class="pill kind-${esc(e.kind)}">${esc(t(`emph.kind.${e.kind}`))}</span>
+            <strong>${esc(e.course)}</strong> ${esc(e.quote)} <a class="muted" href="#/recording/${e.recording_id}">(${esc(when)} ${esc(e.at)})</a></li>`;
+        })
+        .join("")}</ul>`
+    : `<p class="muted">${esc(t("emph.none"))}</p>`;
+
   const fresh = sync.last_result?.new?.length
     ? `<section><h3>${esc(t("today.new_files"))}</h3><ul class="plain">${sync.last_result.new
         .map((f) => `<li>${esc(f.replace("/", " · "))}</li>`)
@@ -96,6 +107,8 @@ export async function showHome(view, crumbs) {
         <section><h3>${esc(t("today.classes"))}</h3>${classes}</section>
         <section><h3>${esc(t("today.exams"))}</h3>${exams}</section>
       </div>
+      <h3>${esc(t("emph.title"))}</h3>
+      ${stressed}
       <h3>${esc(t("rec.title"))}</h3>
       <div id="recordings"></div>
       <h3>${esc(t("today.courses"))}</h3>
