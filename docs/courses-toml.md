@@ -1,6 +1,6 @@
 # `courses.toml`
 
-The schedule file. It lives in your data root, next to the course folders, and the app re-reads it whenever it changes. Write it by hand once per term.
+The schedule file. It lives in your data root, next to the course folders, and the app re-reads it whenever it changes. The setup page writes it: courses come from Moodle or are added by hand, and class times, exams and weekly topics are read from each syllabus and confirmed on a form. Editing it by hand is fine too; when the setup page saves, every value is kept but comments are not.
 
 ```toml
 timezone = "Europe/Istanbul"   # times below are local times in this zone

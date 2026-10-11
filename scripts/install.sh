@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Install study-desk as a launchd agent: the server starts at login and restarts if it stops.
 # Re-running is safe. Use --print to show the agent file without installing anything.
+# When the server answers, the app opens in the browser (the setup page on first run);
+# set STUDYDESK_NO_OPEN=1 to skip that.
 set -euo pipefail
 
 LABEL="com.studydesk.server"
@@ -9,7 +11,7 @@ PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 LOG_DIR="$HOME/Library/Logs/StudyDesk"
 PRINT_ONLY="${1:-}"
 
-command -v uv >/dev/null || { echo "uv is required: https://docs.astral.sh/uv/" >&2; exit 1; }
+command -v uv >/dev/null || { echo "uv is required: curl -LsSf https://astral.sh/uv/install.sh | sh" >&2; exit 1; }
 
 # launchd starts processes with a minimal PATH; add the folders where claude, ffmpeg,
 # mlx_whisper and uv usually live so the server can call them.
@@ -52,6 +54,12 @@ if [ "$PRINT_ONLY" = "--print" ]; then
   exit 0
 fi
 
+# Missing tools are reported, not fatal: the setup page checks them again.
+[ "$(uname -s)" = "Darwin" ] || echo "warning: study-desk is built for macOS." >&2
+[ "$(uname -m)" = "arm64" ] || echo "warning: lecture transcription needs Apple Silicon; the rest works." >&2
+command -v claude >/dev/null || echo "warning: Claude Code (claude) was not found. Install it: curl -fsSL https://claude.ai/install.sh | bash" >&2
+command -v ffmpeg >/dev/null || echo "note: ffmpeg is only needed for lecture recordings (brew install ffmpeg)." >&2
+
 echo "Setting up the Python environment..."
 (cd "$REPO" && uv sync --quiet)
 
@@ -70,6 +78,7 @@ done
 if curl -fs "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1; then
   echo "study-desk is running: http://127.0.0.1:$PORT"
   echo "It starts by itself at login. Logs: $LOG_DIR/server.log"
+  [ -n "${STUDYDESK_NO_OPEN:-}" ] || open "http://127.0.0.1:$PORT/"
 else
   echo "The agent is installed but the server did not answer yet. See $LOG_DIR/server.log" >&2
   exit 1

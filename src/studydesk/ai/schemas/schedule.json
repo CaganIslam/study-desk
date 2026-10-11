@@ -1,0 +1,49 @@
+{
+  "type": "object",
+  "properties": {
+    "slots": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "properties": {
+          "day": {"type": "string", "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]},
+          "start": {"type": "string"},
+          "end": {"type": "string"},
+          "kind": {"type": "string"},
+          "location": {"type": "string"}
+        },
+        "required": ["day", "start", "end", "kind", "location"]
+      }
+    },
+    "exams": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "properties": {
+          "date": {"type": "string"},
+          "title": {"type": "string"},
+          "start": {"type": "string"}
+        },
+        "required": ["date", "title", "start"]
+      }
+    },
+    "topics": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "properties": {
+          "week_of": {"type": "string"},
+          "title": {"type": "string"}
+        },
+        "required": ["week_of", "title"]
+      }
+    },
+    "term_end": {"type": "string"},
+    "hours_inferred": {"type": "boolean"},
+    "notes": {"type": "string"}
+  },
+  "required": ["slots", "exams", "topics", "term_end", "hours_inferred", "notes"]
+}

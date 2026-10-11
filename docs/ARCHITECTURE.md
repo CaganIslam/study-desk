@@ -12,6 +12,7 @@ Repository (code only, public):
 src/studydesk/
   server.py          FastAPI app and routes (/api/*, static pages)
   config.py          config loading: data root, Moodle, language, models
+  setup.py           first-run setup and settings: writes config.toml and courses.toml
   db/                SQLite connection, numbered SQL migrations
   courses/           courses, schedule, syllabi, time → course matching
   decks/             PDF → slide PNG + text cache
@@ -45,6 +46,7 @@ Config and database: `~/Library/Application Support/StudyDesk/config.toml` and `
 - **Courses and schedule:** `courses.toml` in the data root is the source of truth (format in `docs/courses-toml.md`). It is read with `tomllib` and re-read when it changes; courses are referenced by their `code` everywhere else. Times are wall-clock times in the file's `timezone`.
 - **Background work:** `jobs.JobQueue`, one in-process worker thread, so jobs run in order: sync, import, transcription, alignment, prefetch. A job key that is already queued or running is not queued twice. Jobs are idempotent and safe to re-run.
 - **Decks and slides:** every PDF in `<course>/slides/` is a deck. Pages are grouped into logical slides: when most pages end with a frame number, pages sharing a number are one slide and the number is its label (what the lecturer calls it); otherwise a page whose text extends the previous page is a build step. A slide is shown and explained from its last page. Decks are re-indexed when their mtime/size changes (hash decides), keeping their id. Every pdfium call (scan and render) holds `decks.PDFIUM_LOCK`: pdfium is not thread-safe and concurrent use crashes the process. PNG renders are cached by file hash in `<app dir>/cache/slides/` at two sizes: `view` (2000 px) and `ai` (1280 px).
+- **Setup and settings:** `#/setup` (`web/js/setup.js`) and `/api/setup/*` (`setup.py`). The home page sends the student there until a data folder exists and `courses.toml` lists a course; afterwards it is the settings page ("Ayarlar"). Each step writes the plain files, never the database: `config.toml` (data root, explanation language, Moodle address) and `courses.toml` (courses, slots, exams, topics). Files are rewritten from their parsed form with every other key kept (comments are lost), through a temporary file that must load before it replaces the old one, so a bad value never breaks the app. The setup routes read the files fresh; the rest of the app reads `config.toml` once at start, so a change to it restarts the server: the route sets `restart_requested`, `__main__.serve` stops uvicorn after the response and starts a new app in the same process, and the page waits until `/api/health` reports a new `boot` id. `courses.toml` needs no restart. The Moodle token is checked with `core_webservice_get_site_info` and only then stored in the Keychain; courses come from `core_enrol_get_users_courses` with a suggested code ("CS 101") parsed from the short name. The schedule proposal is one Claude call (`schedule_system.md`, schema `schedule.json`) over the text of the first 12 pages of the syllabus; it is cleaned to values the file can hold and shown in a form, never saved without the student pressing save. The folder picker lists folders server-side (`/api/setup/dirs`), so there is no native dialog.
 - **Moodle:** `ingest/moodle.py` talks to the web service with the stdlib (no Claude). Only PDFs are synced, into `<course>/slides/`. Downloaded files are tracked in `moodle_files`; unchanged files are skipped, a file put there by hand with the same name and size is adopted, and a different file with the same name is never overwritten (the download is saved as `<name> (Moodle).pdf`).
 - **API:** JSON under `/api/...`, pages served as static files. Errors return `{"error": {"code", "message"}}` with a proper status code.
 - **Activity, sessions, notes, search:** the study page records a `view` in `activity` for every slide shown. Resume points (last slide per course or overall) and sessions (views of one course with gaps under 30 minutes) are derived from it, never opened or closed by the browser. When a session has been idle for 30 minutes, a notes file is written to `<course>/notes/YYYY-MM-DD-HHMM.md` (slides, known marks, questions with the first sentence of the answer, exam notes, terms), assembled without Claude; `session_notes` remembers which were written. Explanations and questions are indexed in the FTS5 table `search_index` with folded text; rows made before search existed are backfilled at startup.
@@ -61,17 +63,18 @@ Config and database: `~/Library/Application Support/StudyDesk/config.toml` and `
 
 ## Constraints (the "always / never" list)
 
-- Always bind the server to `127.0.0.1`.
+- Always bind the server to `127.0.0.1`. Requests with another Host name (DNS rebinding) get 400, and writes whose `Origin` is another site or another local port get 403, so web pages cannot drive the API.
 - Always send Claude only what one call needs: the current slide and a short context, never whole decks or whole transcripts (except the alignment call).
 - Never commit personal data: slides, transcripts, photos, schedules, tokens, the database.
 - Never store audio: a dropped recording is deleted once its transcript is saved. Never read or modify the Voice Memos or Photos libraries.
 - Never send deterministic work to Claude.
 - Never load assets from a CDN at runtime. Vendor them.
+- Never write the Moodle token anywhere but the Keychain: not to a file, a log, the database or an API response.
 - Commit messages and PRs carry no AI attribution.
 
 ## Running it
 
-- `scripts/install.sh` installs the launchd agent `com.studydesk.server` (`~/Library/LaunchAgents/`): it runs `.venv/bin/study-desk` at login, restarts it if it stops (`KeepAlive`, 10 s throttle) and logs to `~/Library/Logs/StudyDesk/server.log`. The agent gets a PATH with the folders of `claude`, `ffmpeg`, `mlx_whisper` and `uv`, because launchd starts processes with a minimal PATH. Re-running the script replaces the running agent. `scripts/uninstall.sh` removes the agent and keeps all data.
+- `scripts/install.sh` warns about missing tools (uv is required; claude, ffmpeg optional at install time), then installs the launchd agent `com.studydesk.server` (`~/Library/LaunchAgents/`): it runs `.venv/bin/study-desk` at login, restarts it if it stops (`KeepAlive`, 10 s throttle) and logs to `~/Library/Logs/StudyDesk/server.log`. The agent gets a PATH with the folders of `claude`, `ffmpeg`, `mlx_whisper` and `uv`, because launchd starts processes with a minimal PATH. Re-running the script replaces the running agent, and it opens the app in the browser once it answers (the setup page on first run; `STUDYDESK_NO_OPEN=1` skips that). `scripts/uninstall.sh` removes the agent and keeps all data. The repo also carries a Claude Code skill (`.claude/skills/study-desk-setup/`) that checks the machine, runs the installer and helps through the setup page.
 - During development, stop the agent (`launchctl bootout gui/$(id -u)/com.studydesk.server`) or run a second copy with another `port` in a separate `STUDYDESK_HOME`.
 
 ## Tooling

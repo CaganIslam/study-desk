@@ -7,6 +7,7 @@ import { initBar } from "./bar.js";
 import { showTerms } from "./terms.js";
 import { leaveDeckless, showDeckless, showLive } from "./live.js";
 import { initDrop, showRecording } from "./recordings.js";
+import { leaveSetup, showSetup } from "./setup.js";
 
 applyStrings();
 initBar();
@@ -21,11 +22,13 @@ const crumbs = document.getElementById("crumbs");
 async function route() {
   leaveStudy();
   leaveDeckless();
+  leaveSetup();
   const [page, a, b] = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
   try {
     if (page === "course" && a) await showCourse(view, crumbs, a);
     else if (page === "deck" && a) await showStudy(view, crumbs, Number(a), Number(b) || 1);
     else if (page === "terms") await showTerms(view, crumbs, a);
+    else if (page === "setup") await showSetup(view, crumbs);
     else if (page === "recording" && a) await showRecording(view, crumbs, a);
     else if (page === "live" && a === "course" && b) await showDeckless(view, crumbs, b);
     else if (page === "live" && a === "pick" && b) await showLive(view, crumbs, b);

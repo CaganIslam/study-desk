@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-11 - Setup page, setup skill, install guide (v0.1)
+- Issue: #17  ·  Milestone: v0.1 - Public alpha
+- What changed: a first-run setup page that is also the settings page (`#/setup`, "Ayarlar"): data folder with an in-page folder browser and the explanation language; Moodle address and token, checked against Moodle before the token goes to the Keychain; enrolled Moodle courses with suggested code, name and folder, or courses added by hand; class times, exams and weekly topics read from the syllabus by Claude and confirmed on a form (or typed in); a Claude check and a recording-tools check. Saving config.toml restarts the server in-process. The installer warns about missing tools and opens the app. A Claude Code skill installs and guides; the README is now an install and use guide.
+- Notes for next time: tried end to end on a fresh app directory and an empty course folder with the real Moodle and Claude (port 4621): the logic course's syllabus came back as Thursday 13:00-16:00 from its hour code "ThThTh567", the midterm on 12 November and all weekly topics, with a note about a typo in the syllabus calendar; after setup the course opened and the first slide was explained. Not tried on a second macOS user account; the first install by someone else is that test. Options picked: courses from Moodle first with hand-added ones next to them; Claude proposes the schedule and the student confirms; the files stay the source of truth.
+
 ## 2026-10-07 - The lecturer's words on every slide
 - Issue: #20 (transcript part; board photos and moving deckless questions to slides are still open)  ·  Milestone: Milestone 4 - Alignment and board photos
 - What changed: one Claude call per recording matches the transcript to slides and pulls out what the lecturer stressed. Explanations now include the lecturer's words for the slide ("Hoca derste: ...") and are regenerated once those words arrive; the study screen shows a "Hoca bu slaytta" panel (emphasis, the transcript excerpt, a link to the recording); the Today screen lists exam and homework hints; recordings are aligned again when a late deck arrives. Uploaded recordings keep their own file name. A test guard now fails any test that would start the real `claude`.

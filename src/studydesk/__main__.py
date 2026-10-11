@@ -15,8 +15,16 @@ HOST = "127.0.0.1"
 
 
 def serve() -> None:
-    config = load_config()
-    uvicorn.run(create_app(config), host=HOST, port=config.port, log_level="info")
+    """Run the server. When the setup page changes config.toml, it stops and starts again with the new file."""
+    while True:
+        config = load_config()
+        app = create_app(config)
+        # A restart must not wait for a slow Claude call in another tab; those requests are dropped after 5 s.
+        server = uvicorn.Server(uvicorn.Config(app, host=HOST, port=config.port, log_level="info", timeout_graceful_shutdown=5))
+        app.state.on_restart = lambda: setattr(server, "should_exit", True)
+        server.run()
+        if not app.state.restart_requested:
+            return
 
 
 def import_sessions(path: Path) -> None:
