@@ -14,6 +14,7 @@ class FakeMoodle:
         self.blobs: dict[str, bytes] = {}
         self.down: set[int] = set()
         self.downloads: list[str] = []
+        self.enrolled: list[dict] = []  # what core_enrol_get_users_courses returns
 
     def add_file(self, course_id, filename, content, timemodified=1000):
         url = f"https://moodle.test/webservice/pluginfile.php/{course_id}/{filename}"
@@ -30,6 +31,11 @@ class FakeMoodle:
         if parsed.path.endswith("/webservice/rest/server.php"):
             if query.get("wstoken") != TOKEN:
                 return io.BytesIO(json.dumps({"exception": "x", "errorcode": "invalidtoken", "message": "Invalid token"}).encode())
+            if query.get("wsfunction") == "core_webservice_get_site_info":
+                return io.BytesIO(json.dumps({"sitename": "Test University", "fullname": "Ada Student", "userid": 7}).encode())
+            if query.get("wsfunction") == "core_enrol_get_users_courses":
+                assert query.get("userid") == "7"
+                return io.BytesIO(json.dumps(self.enrolled).encode())
             course_id = int(query["courseid"])
             if course_id in self.down:
                 raise urllib.error.URLError("down")

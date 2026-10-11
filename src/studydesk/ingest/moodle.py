@@ -76,6 +76,8 @@ class MoodleClient:
                 body = json.load(response)
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             raise MoodleError("network", f"Moodle unreachable: {exc.__class__.__name__}") from None
+        except ValueError:  # an HTML page instead of JSON: not a Moodle web service
+            raise MoodleError("not_moodle", "no Moodle web service at this address") from None
         if isinstance(body, dict) and body.get("exception"):
             raise MoodleError(body.get("errorcode", "moodle"), body.get("message", "Moodle error"))
         return body

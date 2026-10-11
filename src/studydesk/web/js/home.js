@@ -24,8 +24,8 @@ function daysLeft(n) {
 export async function showHome(view, crumbs) {
   crumbs.textContent = "";
   const health = await api.get("/api/health");
-  if (!health.data_root_configured) {
-    view.innerHTML = `<p class="muted">${esc(t("app.first_run"))}</p>`;
+  if (!health.setup_complete) {
+    location.hash = "#/setup"; // first run, or the course list is empty
     return;
   }
   const [today, overview, sync, emphasis] = await Promise.all([

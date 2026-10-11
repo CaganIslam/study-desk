@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
+import subprocess
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from studydesk import __version__
 from studydesk.config import Config, ConfigError, load_config
-from studydesk import decks
+from studydesk import decks, setup
 from studydesk.ai.runner import ClaudeCLI, ClaudeError, Runner
 from studydesk.courses import CatalogFile, Course
 from studydesk.db import Database
@@ -74,11 +75,50 @@ class ExplainRequest(BaseModel):
     live: bool = False
 
 
-def _default_moodle_client(config: Config) -> moodle.MoodleClient | None:
+class FolderRequest(BaseModel):
+    data_root: str
+    language: str = "tr"
+
+
+class MoodleRequest(BaseModel):
+    url: str
+    token: str = ""
+
+
+class CourseEntry(BaseModel):
+    code: str
+    name: str
+    folder: str = ""
+    aliases: list[str] = []
+    language: str = "en"
+    moodle_id: int | None = None
+
+
+class CoursesRequest(BaseModel):
+    courses: list[CourseEntry]
+
+
+class ProposeRequest(BaseModel):
+    file: str
+
+
+class ScheduleRequest(BaseModel):
+    slots: list[dict] = []
+    exams: list[dict] = []
+    topics: list[dict] = []
+    syllabus: str | None = None
+
+
+class TermRequest(BaseModel):
+    term_end: str | None = None
+    timezone: str | None = None
+
+
+def _default_moodle_client(config: Config, factory: Callable[[str, str], moodle.MoodleClient]) -> moodle.MoodleClient | None:
     if not config.moodle_url:
         return None
     token = moodle.get_token(config.moodle_url)
-    return moodle.MoodleClient(config.moodle_url, token) if token else None
+    return factory(config.moodle_url, token) if token else None
 
 
 def create_app(
@@ -86,6 +126,7 @@ def create_app(
     now: Callable[[], datetime] | None = None,
     moodle_client: Callable[[], moodle.MoodleClient | None] | None = None,
     runner: Runner | None = None,
+    moodle_factory: Callable[[str, str], moodle.MoodleClient] | None = None,
 ) -> FastAPI:
     config = config or load_config()
     db = Database(config.database_path)
@@ -95,7 +136,8 @@ def create_app(
     catalog_file = CatalogFile(config.data_root)
     jobs = JobQueue()
     transcriber = JobQueue()  # its own worker: a 40-second transcription must not hold up prefetching
-    make_moodle_client = moodle_client or (lambda: _default_moodle_client(config))
+    new_moodle_client = moodle_factory or (lambda url, token: moodle.MoodleClient(url, token))
+    make_moodle_client = moodle_client or (lambda: _default_moodle_client(config, new_moodle_client))
     runner = runner or ClaudeCLI(cwd=config.app_home)
 
     app = FastAPI(title="study-desk", version=__version__)
@@ -107,6 +149,10 @@ def create_app(
     app.state.transcribe_fn = None  # tests swap in a fake transcriber
     app.state.probe_fn = None  # and a fake ffprobe
     app.state.runner = runner
+    app.state.boot = uuid.uuid4().hex[:12]  # changes when the server restarts after a settings change
+    app.state.on_restart = None  # set by the serve loop in __main__
+    app.state.restart_requested = False
+    app.state.reveal_fn = lambda path: subprocess.run(["open", str(path)], check=False)
 
     def clock() -> datetime:
         return now() if now else datetime.now(catalog_file.get().timezone)
@@ -127,13 +173,166 @@ def create_app(
     async def config_error(_: Request, exc: ConfigError) -> JSONResponse:
         return _error(422, "config_invalid", str(exc))
 
+    @app.exception_handler(setup.SetupError)
+    async def setup_error(_: Request, exc: setup.SetupError) -> JSONResponse:
+        return _error(exc.status, exc.code, str(exc))
+
+    def setup_complete() -> bool:
+        try:
+            return bool(config.data_root and config.data_root.is_dir() and catalog_file.get().courses)
+        except ConfigError:
+            return False
+
     @app.get("/api/health")
     def health() -> dict:
         return {
             "status": "ok",
             "version": __version__,
             "data_root_configured": config.data_root is not None,
+            "setup_complete": setup_complete(),
+            "boot": app.state.boot,
         }
+
+    # --- setup and settings (setup.py); these read the files fresh, the running config may be older ---
+
+    home = config.app_home
+
+    def restart_later(background: BackgroundTasks) -> dict:
+        """config.toml changed: restart after this response so the whole app reads it again."""
+        app.state.restart_requested = True
+        if app.state.on_restart:
+            background.add_task(app.state.on_restart)
+        return {"restart": app.state.on_restart is not None, "boot": app.state.boot}
+
+    def fresh_config() -> dict:
+        return setup.read_toml(home / "config.toml")
+
+    def fresh_root() -> Path:
+        root = fresh_config().get("data_root")
+        path = Path(root).expanduser() if isinstance(root, str) and root else None
+        if path is None or not path.is_dir():
+            raise HTTPException(status_code=409, detail="data_root_missing")
+        return path
+
+    def fresh_course(root: Path, code: str) -> dict:
+        return setup._course_raw(setup.read_toml(root / "courses.toml"), code)
+
+    def fresh_moodle_client() -> moodle.MoodleClient:
+        table = fresh_config().get("moodle")
+        url = table.get("url") if isinstance(table, dict) else None
+        if not url:
+            raise HTTPException(status_code=409, detail="moodle_not_configured")
+        token = moodle.get_token(url)
+        if not token:
+            raise setup.SetupError("moodle_token_missing", "no Moodle token saved for this address", 409)
+        return new_moodle_client(url, token)
+
+    @app.get("/api/setup")
+    def setup_status() -> dict:
+        state = setup.status(home)
+        raw = fresh_config()
+        moodle_table = raw.get("moodle") if isinstance(raw.get("moodle"), dict) else {}
+        on_disk = (
+            str(Path(raw["data_root"]).expanduser()) if isinstance(raw.get("data_root"), str) and raw["data_root"] else None,
+            raw.get("language") or "tr",
+            moodle_table.get("url"),
+        )
+        running = (str(config.data_root) if config.data_root else None, config.language, config.moodle_url)
+        return {**state, "restart_pending": on_disk != running}
+
+    @app.post("/api/setup/restart")
+    def setup_restart(background: BackgroundTasks) -> dict:
+        return restart_later(background)
+
+    @app.get("/api/setup/dirs")
+    def setup_dirs(path: str | None = None) -> dict:
+        return setup.list_dirs(path)
+
+    @app.post("/api/setup/folder")
+    def setup_folder(request: FolderRequest, background: BackgroundTasks) -> dict:
+        path = setup.save_folder(home, request.data_root, request.language)
+        return {"data_root": str(path), **restart_later(background)}
+
+    @app.post("/api/setup/moodle")
+    def setup_moodle(request: MoodleRequest, background: BackgroundTasks) -> dict:
+        url = setup.normalise_url(request.url)
+        new_token = request.token.strip()
+        token = new_token or moodle.get_token(url)
+        if not token:
+            raise setup.SetupError("moodle_token_missing", "paste the token from Moodle first")
+        info = setup.site_info(new_moodle_client(url, token))
+        if new_token:
+            try:
+                moodle.set_token(url, new_token)
+            except (OSError, subprocess.CalledProcessError):
+                raise setup.SetupError("keychain_failed", "the token could not be saved in the Keychain", 500) from None
+        setup.save_moodle(home, url)
+        reply = {"url": url, "site": info["site"], "user": info["user"]}
+        if url != config.moodle_url:
+            return {**reply, **restart_later(background)}
+        return {**reply, "restart": False, "boot": app.state.boot}
+
+    @app.delete("/api/setup/moodle")
+    def setup_moodle_remove(background: BackgroundTasks) -> dict:
+        setup.remove_moodle(home)
+        return restart_later(background) if config.moodle_url else {"restart": False, "boot": app.state.boot}
+
+    @app.get("/api/setup/moodle/courses")
+    def setup_moodle_courses() -> dict:
+        return {"courses": setup.moodle_courses(fresh_moodle_client())}
+
+    @app.post("/api/setup/courses")
+    def setup_courses(request: CoursesRequest) -> dict:
+        setup.save_courses(fresh_root(), [c.model_dump() for c in request.courses])
+        return setup.status(home)
+
+    @app.get("/api/setup/courses/{code}/pdfs")
+    def setup_course_pdfs(code: str) -> dict:
+        root = fresh_root()
+        return {"code": code, "pdfs": setup.course_pdfs(root, fresh_course(root, code)["folder"])}
+
+    @app.post("/api/setup/courses/{code}/pdfs")
+    async def setup_course_upload(code: str, file: UploadFile = File(...)) -> dict:
+        root = fresh_root()
+        folder = fresh_course(root, code)["folder"]
+        content = await file.read()
+        return {"code": code, "file": setup.save_upload(root, folder, file.filename or "", content)}
+
+    @app.post("/api/setup/courses/{code}/reveal")
+    def setup_course_reveal(code: str) -> dict:
+        root = fresh_root()
+        path = root / fresh_course(root, code)["folder"]
+        path.mkdir(parents=True, exist_ok=True)
+        app.state.reveal_fn(path)
+        return {"code": code, "opened": True}
+
+    @app.post("/api/setup/courses/{code}/schedule/propose")
+    def setup_propose(code: str, request: ProposeRequest) -> dict:
+        root = fresh_root()
+        raw = fresh_config()
+        today = clock().date()
+        proposal = setup.propose_schedule(
+            root, code, request.file, app.state.runner, raw.get("language") or "tr", config.model_default, today
+        )
+        return {"code": code, "file": request.file, "proposal": proposal}
+
+    @app.put("/api/setup/courses/{code}/schedule")
+    def setup_schedule(code: str, request: ScheduleRequest) -> dict:
+        setup.save_schedule(fresh_root(), code, request.slots, request.exams, request.topics, request.syllabus)
+        return setup.status(home)
+
+    @app.put("/api/setup/term")
+    def setup_term(request: TermRequest) -> dict:
+        setup.save_term(fresh_root(), request.term_end, request.timezone)
+        return setup.status(home)
+
+    @app.get("/api/setup/check/claude")
+    def setup_check_claude() -> dict:
+        return setup.check_claude(app.state.runner)
+
+    @app.get("/api/setup/check/tools")
+    def setup_check_tools() -> dict:
+        return setup.check_tools()
 
     @app.get("/api/courses")
     def courses() -> dict:

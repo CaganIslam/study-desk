@@ -5,10 +5,12 @@ def test_health_shape(client):
     response = client.get("/api/health")
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == {"status", "version", "data_root_configured"}
+    assert set(body) == {"status", "version", "data_root_configured", "setup_complete", "boot"}
     assert isinstance(body["status"], str)
     assert isinstance(body["version"], str)
     assert isinstance(body["data_root_configured"], bool)
+    assert isinstance(body["setup_complete"], bool)
+    assert isinstance(body["boot"], str)
 
 
 def test_unknown_api_path_uses_error_shape(client):

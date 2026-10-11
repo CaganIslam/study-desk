@@ -26,13 +26,14 @@ Local libraries (no data leaves the machine):
 
 | Provider | Role | Tier/plan | Env var(s) | Data sent | Residency | Cost | Link |
 |---|---|---|---|---|---|---|---|
-| Anthropic Claude, via Claude Code | Explanations (with the lecturer's words for the slide), answers, command fallback, transcript-to-slide alignment with the lecturer's emphasis, board photo reading, term extraction | The user's own Claude plan (Claude Code login) | none (Claude Code's own login) | current slide image and text, a short context summary, the lecturer's words for that slide, the user's question, known-term list; for alignment, the lecture transcript and slide titles | Anthropic | Counts toward the user's plan limits | https://docs.claude.com/en/docs/claude-code |
-| Moodle web service (the user's university) | List and download course PDFs | The user's account | URL in `config.toml` (`[moodle] url`); token in the macOS Keychain (service `study-desk-moodle`, account = URL), `MOODLE_TOKEN` overrides it | the token and file requests | the university's server | free | https://docs.moodle.org/dev/Web_services |
+| Anthropic Claude, via Claude Code | Explanations (with the lecturer's words for the slide), answers, command fallback, transcript-to-slide alignment with the lecturer's emphasis, board photo reading, term extraction | The user's own Claude plan (Claude Code login) | none (Claude Code's own login) | current slide image and text, a short context summary, the lecturer's words for that slide, the user's question, known-term list; for alignment, the lecture transcript and slide titles; on the setup page, the text of a syllabus the user asks it to read | Anthropic | Counts toward the user's plan limits | https://docs.claude.com/en/docs/claude-code |
+| Moodle web service (the user's university) | List and download course PDFs | The user's account | URL in `config.toml` (`[moodle] url`); token in the macOS Keychain (service `study-desk-moodle`, account = URL), `MOODLE_TOKEN` overrides it | the token and file requests; during setup, the site-info and enrolled-courses calls | the university's server | free | https://docs.moodle.org/dev/Web_services |
 | Hugging Face Hub | One-time download of the whisper model | free | none | nothing personal (model download only) | - | free | https://huggingface.co/mlx-community/whisper-large-v3-turbo |
 
 ## Data that may leave the box
 
 - Slide image and text, short context, lecturer's words for the slide, the user's questions → Anthropic (via Claude Code)
 - Lecture transcripts (alignment call) and board photos (reading call) → Anthropic (via Claude Code)
+- Syllabus text, when the user asks the setup page to read class times from it → Anthropic (via Claude Code)
 - Moodle token and requests → the user's own Moodle server
 - Nothing else. Audio never leaves the machine and is not stored.
