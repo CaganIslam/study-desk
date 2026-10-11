@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import urllib.parse
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -36,6 +37,7 @@ def _hhmm(value) -> str | None:
     return value.strftime("%H:%M") if value else None
 
 
+LOCAL_HOSTS = {"127.0.0.1", "localhost", "testserver"}  # testserver: FastAPI's TestClient
 MOODLE_SYNC_INTERVAL = timedelta(minutes=30)
 MOODLE_SYNC_INTERVAL_LIVE = timedelta(minutes=3)  # a lecturer may upload the deck during the class
 LIVE_MODEL = "sonnet"  # used in live mode when config.toml sets no [models] live
@@ -882,6 +884,20 @@ def create_app(
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
     def api_not_found(path: str) -> None:
         raise HTTPException(status_code=404, detail="not_found")
+
+    @app.middleware("http")
+    async def only_this_app(request: Request, call_next):
+        """Only the app's own pages may use the API: no other site (cross-origin writes) and no other
+        host name pointing at 127.0.0.1 (DNS rebinding)."""
+        host = (request.headers.get("host") or "").rsplit(":", 1)[0].strip("[]")
+        if host not in LOCAL_HOSTS and host != "::1":
+            return _error(400, "bad_host", "requests must use 127.0.0.1 or localhost")
+        origin = request.headers.get("origin")
+        if request.method not in ("GET", "HEAD", "OPTIONS") and origin is not None:
+            parts = urllib.parse.urlsplit(origin)
+            if parts.hostname not in LOCAL_HOSTS or parts.port != request.url.port:  # another site, or another local port
+                return _error(403, "cross_origin", "requests from other sites are refused")
+        return await call_next(request)
 
     @app.middleware("http")
     async def revalidate_pages(request: Request, call_next):

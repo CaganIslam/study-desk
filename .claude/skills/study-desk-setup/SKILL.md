@@ -5,7 +5,7 @@ description: Install study-desk on this Mac, open its setup page and help until 
 
 # Setting up study-desk
 
-study-desk is a local web app (FastAPI on `127.0.0.1:4620`) that runs as a launchd agent. Installing it is one script; everything personal (course folder, Moodle, courses, class times) is then entered on the app's own setup page in the browser. Your job is to get the person to that page with a working install, and to help when something fails. Talk to them in their language; the app's interface is in Turkish.
+study-desk is a local web app (FastAPI on `127.0.0.1:4620`) that runs as a launchd agent. Installing it is one script; everything personal (study folder, Moodle, courses, class times) is then entered on the app's own setup page in the browser. Your job is to get the person to that page with a working install, and to help when something fails. Talk to them in their language; the app's interface is in Turkish.
 
 ## 1. Check the machine (read-only)
 
@@ -76,10 +76,10 @@ Setup is complete when `/api/health` reports `"setup_complete": true`. Point the
 ## Updating and uninstalling
 
 - Update: `git pull && ./scripts/install.sh`.
-- Uninstall: `./scripts/uninstall.sh` stops the app and removes the service; their course folder, `~/Library/Application Support/StudyDesk/` and the logs stay. Delete those only if they explicitly ask, and show what will be deleted first.
+- Uninstall: `./scripts/uninstall.sh` stops the app and removes the service; their study folder, `~/Library/Application Support/StudyDesk/` and the logs stay. Delete those only if they explicitly ask, and show what will be deleted first.
 
 ## Rules
 
 - Never read, print or store the Moodle token (no `security find-generic-password -w`, no echoing it, no writing it to files).
-- Their course folder, `courses.toml`, the database and transcripts are personal data: never copy them into the repository or commit them.
+- Their study folder, `courses.toml`, the database and transcripts are personal data: never copy them into the repository or commit them.
 - Do not change the app's code to make one setup work. If something is a bug, say so and suggest opening an issue on the repository.

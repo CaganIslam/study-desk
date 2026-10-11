@@ -241,6 +241,14 @@ def load_catalog(path: Path) -> Catalog:
         raw = tomllib.loads(path.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError as exc:
         raise ConfigError(f"{path}: {exc}") from exc
+    try:
+        return _catalog(raw)
+    except (AttributeError, TypeError, KeyError) as exc:
+        # e.g. [courses] written where [[courses]] was meant: a table where a list of tables belongs
+        raise ConfigError(f"{path}: unexpected structure, check [[courses]] and [[courses.slots]] ({exc})") from exc
+
+
+def _catalog(raw: dict) -> Catalog:
     closures = []
     for j, c in enumerate(raw.get("closures", [])):
         w = f"closures[{j}]"

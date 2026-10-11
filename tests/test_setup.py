@@ -366,3 +366,47 @@ def test_tools_check_shape(home, keychain, fake_moodle):
 def test_setup_page_strings_exist():
     strings = json.loads((Path(__file__).resolve().parents[1] / "src/studydesk/web/strings.tr.json").read_text())
     assert any(key.startswith("setup.") for key in strings)
+
+
+def test_other_sites_cannot_use_the_api(home, keychain, fake_moodle):
+    client = make_client(home, fake_moodle, restarts=[])
+    for origin in ("https://evil.example", "http://localhost:9999"):
+        refused = client.post("/api/setup/restart", headers={"Origin": origin})
+        assert refused.status_code == 403 and refused.json()["error"]["code"] == "cross_origin"
+    assert client.post("/api/setup/restart", headers={"Origin": "http://testserver"}).status_code == 200
+    rebound = client.get("/api/setup/dirs", headers={"Host": "attacker.example"})
+    assert rebound.status_code == 400 and rebound.json()["error"]["code"] == "bad_host"
+    assert client.get("/api/health", headers={"Host": "127.0.0.1:4620"}).status_code == 200
+
+
+def test_a_wrong_table_shape_in_courses_toml_is_reported_not_a_crash(home, keychain, fake_moodle, tmp_path):
+    client = make_client(home, fake_moodle)
+    data = tmp_path / "data"
+    client.post("/api/setup/folder", json={"data_root": str(data)})
+    (data / "courses.toml").write_text('[courses]\ncode = "A 1"\nname = "A"\nfolder = "A"\n')
+    state = client.get("/api/setup").json()
+    assert state["complete"] is False and "unexpected structure" in state["catalog_error"]
+    assert client.get("/api/health").status_code == 200
+
+
+def test_a_damaged_syllabus_is_reported(home, keychain, fake_moodle, tmp_path):
+    client = make_client(home, fake_moodle)
+    data = tmp_path / "data"
+    client.post("/api/setup/folder", json={"data_root": str(data)})
+    client.post("/api/setup/courses", json={"courses": [{"code": "HIST 100", "name": "History"}]})
+    (data / "HIST100 History" / "slides" / "broken.pdf").write_bytes(b"%PDF-1.4 not really")
+    response = client.post("/api/setup/courses/HIST 100/schedule/propose", json={"file": "slides/broken.pdf"})
+    assert response.status_code == 400 and response.json()["error"]["code"] == "syllabus_unreadable"
+
+
+def test_timezone_shown_is_the_one_the_app_uses(home, keychain, fake_moodle, tmp_path):
+    client = make_client(home, fake_moodle)
+    data = tmp_path / "data"
+    client.post("/api/setup/folder", json={"data_root": str(data)})
+    assert client.get("/api/setup").json()["catalog"]["timezone"] == setup.local_timezone()
+    (data / "courses.toml").write_text('[[courses]]\ncode = "A 1"\nname = "A"\nfolder = "A"\n')
+    assert client.get("/api/setup").json()["catalog"]["timezone"] == "UTC"
+
+
+def test_keys_with_a_newline_are_quoted():
+    assert tomllib.loads(setup.dumps({"a\n": 1})) == {"a\n": 1}

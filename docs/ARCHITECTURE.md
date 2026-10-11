@@ -63,7 +63,7 @@ Config and database: `~/Library/Application Support/StudyDesk/config.toml` and `
 
 ## Constraints (the "always / never" list)
 
-- Always bind the server to `127.0.0.1`.
+- Always bind the server to `127.0.0.1`. Requests with another Host name (DNS rebinding) get 400, and writes whose `Origin` is another site or another local port get 403, so web pages cannot drive the API.
 - Always send Claude only what one call needs: the current slide and a short context, never whole decks or whole transcripts (except the alignment call).
 - Never commit personal data: slides, transcripts, photos, schedules, tokens, the database.
 - Never store audio: a dropped recording is deleted once its transcript is saved. Never read or modify the Voice Memos or Photos libraries.

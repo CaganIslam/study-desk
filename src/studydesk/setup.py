@@ -49,7 +49,7 @@ _BARE_KEY = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 def _key(name: str) -> str:
-    return name if _BARE_KEY.match(name) else json.dumps(name, ensure_ascii=False)
+    return name if _BARE_KEY.fullmatch(name) else json.dumps(name, ensure_ascii=False)
 
 
 def _value(value) -> str:
@@ -175,8 +175,10 @@ def status(home: Path) -> dict:
             load_catalog(data_root / "courses.toml")  # the app must be able to read what we show
         except ConfigError as exc:
             catalog_raw, catalog_error = {}, str(exc)
+        has_file = (data_root / "courses.toml").exists()
         catalog = {
-            "timezone": catalog_raw.get("timezone") or local_timezone(),
+            # what the app uses: UTC when an existing file names no timezone, this Mac's zone for a new file
+            "timezone": catalog_raw.get("timezone") or ("UTC" if has_file else local_timezone()),
             "term_end": _jsonable(catalog_raw.get("term_end")),
         }
         for c in catalog_raw.get("courses", []):
@@ -461,7 +463,10 @@ SYLLABUS_CHARS = 20000
 
 def syllabus_text(path: Path) -> str:
     with decks.PDFIUM_LOCK:
-        pdf = pdfium.PdfDocument(str(path))
+        try:
+            pdf = pdfium.PdfDocument(str(path))
+        except pdfium.PdfiumError:
+            raise SetupError("syllabus_unreadable", "the PDF cannot be opened (damaged or password protected)") from None
         try:
             texts = decks.page_texts(pdf)[:SYLLABUS_PAGES]
         finally:

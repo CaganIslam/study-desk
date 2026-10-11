@@ -284,5 +284,7 @@
   "day.sat": "Cumartesi",
   "day.sun": "Pazar",
   "setup.invalid": "Kaydedilemedi, bir değer hatalı: {error}",
-  "setup.schedule.exam_title": "Başlık"
+  "setup.schedule.exam_title": "Başlık",
+  "setup.courses.fixed": "Kayıtlı bir dersin kodu ve klasörü buradan değişmez; geçmişin ve dosyaların ona bağlı. Gerekirse courses.toml'u elle düzenle.",
+  "error.syllabus_unreadable": "Bu PDF açılamadı (bozuk ya da şifreli olabilir). Başka bir dosya seç ya da programı elle gir."
 }

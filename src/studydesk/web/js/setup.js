@@ -42,7 +42,7 @@ async function reload() {
 
 /** Wait until the server answers with a new boot id (it restarts after config.toml changes). */
 async function waitForRestart(oldBoot) {
-  const until = Date.now() + 30000;
+  const until = Date.now() + 60000;
   while (Date.now() < until) {
     await sleep(600);
     try {
@@ -77,6 +77,11 @@ async function restarted(result) {
   if (!(await waitForRestart(result.boot))) notices.folder = { kind: "error", text: t("setup.restart_timeout") };
 }
 
+/** Called by the router before another page is shown: late answers must not draw over it. */
+export function leaveSetup() {
+  view = null;
+}
+
 export async function showSetup(target, crumbs) {
   view = target;
   crumbs.textContent = "";
@@ -103,7 +108,7 @@ function step(id, number, title, done, locked, body) {
 }
 
 function render() {
-  if (!view || !state) return;
+  if (!view || !state || !location.hash.startsWith("#/setup")) return;
   const focused = document.activeElement?.id;
   const firstRun = !state.complete;
   view.innerHTML = `<div class="setup">
@@ -226,13 +231,13 @@ function buildRows() {
 function courseRow(row, i) {
   const fields = row.checked
     ? `<div class="course-fields">
-        <label>${esc(t("setup.courses.code"))}<input data-row="${i}" data-field="code" value="${esc(row.code)}"></label>
+        <label>${esc(t("setup.courses.code"))}<input data-row="${i}" data-field="code" value="${esc(row.code)}"${row.saved ? ` readonly title="${esc(t("setup.courses.fixed"))}"` : ""}></label>
         <label>${esc(t("setup.courses.name"))}<input data-row="${i}" data-field="name" value="${esc(row.name)}"></label>
-        <label>${esc(t("setup.courses.folder"))}<input data-row="${i}" data-field="folder" value="${esc(row.folder)}"></label>
+        <label>${esc(t("setup.courses.folder"))}<input data-row="${i}" data-field="folder" value="${esc(row.folder)}"${row.saved ? ` readonly title="${esc(t("setup.courses.fixed"))}"` : ""}></label>
         <label>${esc(t("setup.courses.aliases"))}<input data-row="${i}" data-field="aliases" value="${esc(row.aliases)}" placeholder="580, logic"></label>
-        <label>${esc(t("setup.courses.lecture_language"))}<select data-row="${i}" data-field="language">${LECTURE_LANGUAGES.map(
-          (l) => `<option value="${l}"${l === row.language ? " selected" : ""}>${esc(t(`setup.lang.${l}`))}</option>`,
-        ).join("")}</select></label>
+        <label>${esc(t("setup.courses.lecture_language"))}<select data-row="${i}" data-field="language">${[...new Set([...LECTURE_LANGUAGES, row.language])]
+          .map((l) => `<option value="${esc(l)}"${l === row.language ? " selected" : ""}>${esc(t(`setup.lang.${l}`) === `setup.lang.${l}` ? l : t(`setup.lang.${l}`))}</option>`)
+          .join("")}</select></label>
       </div>`
     : "";
   const title = row.moodle_id
@@ -385,7 +390,19 @@ async function loadMoodleCourses() {
   } catch (error) {
     moodleList = error.code ?? "generic";
   }
-  rows = null;
+  if (rows && view) {
+    // Keep what was ticked or typed while the list was loading.
+    readRows();
+    const before = rows;
+    rows = buildRows();
+    for (const row of rows) {
+      const old = before.find((b) => (row.moodle_id ? b.moodle_id === row.moodle_id : !b.moodle_id && b.code === row.code));
+      if (old) Object.assign(row, { checked: old.checked, code: old.code, name: old.name, folder: old.folder, aliases: old.aliases, language: old.language });
+    }
+    rows.push(...before.filter((b) => !b.moodle_id && !b.saved && !rows.some((r) => !r.moodle_id && r.code === b.code)));
+  } else {
+    rows = null;
+  }
   render();
 }
 
@@ -558,6 +575,7 @@ function wire() {
       if (state.moodle.url && courses.some((c) => c.moodle_id)) {
         notices.courses = { kind: "ok", text: t("setup.courses.syncing") };
         render();
+        await waitForSync(); // a sync started when the page opened still uses the old course list
         await api.post("/api/sync/moodle?force=true");
         const sync = await waitForSync();
         const n = sync?.last_result?.new?.length ?? 0;

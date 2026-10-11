@@ -9,7 +9,7 @@ A local study companion for university courses. It runs on your Mac as a small w
 - **Slide by slide.** Open a course and continue where you left off. Press "Sıradaki" (next) and the current slide is explained in your language; technical terms stay in English, the language of the exam. The next slide is prepared in the background, so moving on is quick.
 - **Explanation controls.** Short, normal or detailed. "Daha basit" explains the slide again from zero, "Örnek ver" gives a worked example, "Formülü aç" walks through a formula. "Biliyorum, geç" skips a slide and remembers that you know it.
 - **One input bar.** Ask about the slide ("bu formül ne?", "what is a linear separator?") or give a command ("462 lec2 aç", "14. slayta git", "kaldığım yer") in the same box.
-- **Moodle sync.** New course PDFs are downloaded every time you open the app.
+- **Moodle sync.** New course PDFs are downloaded when you open the app (at most every 30 minutes; every 3 minutes in live mode).
 - **Lecture recordings.** Record the lecture with Voice Memos, then drag the recording into the app. It is matched to the right course by the time it was recorded, transcribed on your Mac and checked. A broken transcript is reported in plain words with a fix to try. Good transcripts are matched to the slides, so every explanation includes what the lecturer said on that slide, and exam or homework hints show up on the home screen.
 - **Live mode.** A light mode for following a lecture as it happens: the newest deck of the class that is on now, short explanations, a faster model.
 - **Terms.** Every new term goes into a glossary with a one-sentence English definition.
@@ -51,13 +51,13 @@ The installer prepares the Python environment, registers a background service th
 
 On first run the app opens its setup page. You can come back to it any time from **Ayarlar** (settings) in the top bar.
 
-1. **Course folder.** Where your course material lives, one subfolder per course. Pick an existing folder or type a new path; it is created for you. It may be in iCloud Drive or on the Desktop. The database and settings stay on this Mac. Here you also choose the language of the explanations.
+1. **Study folder** ("Ders klasörü"). Where your course material lives, one subfolder per course. Pick an existing folder or type a new path; it is created for you. It may be in iCloud Drive or on the Desktop. The database and settings stay on this Mac. Here you also choose the language of the explanations.
 2. **Moodle (optional).** Paste your Moodle address and your Moodle token (see below). The app checks the connection on the spot.
 3. **Courses.** With Moodle, your enrolled courses are listed with this term's first: tick yours. The app suggests a short code ("CS 101"), a name and a folder; aliases are what you might type in the input bar ("101", "algo"). Without Moodle, add courses by hand.
 4. **Schedule.** Pick a course's syllabus PDF and press "Syllabus'tan oku": Claude reads the class times, exam dates and weekly topics, and you check them in a form before saving. Class times matter: a dropped recording is matched to a course by the time it was recorded. You can also fill the form by hand, or add a syllabus PDF from your computer.
 5. **Checks.** One tiny call confirms that Claude Code works. The tools for recordings are checked too, with the command to install whatever is missing.
 
-The setup page writes two plain files that you may also edit by hand: `~/Library/Application Support/StudyDesk/config.toml` (folder, language, Moodle address) and `courses.toml` in your course folder ([format](docs/courses-toml.md)).
+The setup page writes two plain files that you may also edit by hand: `~/Library/Application Support/StudyDesk/config.toml` (folder, language, Moodle address) and `courses.toml` in your study folder ([format](docs/courses-toml.md)).
 
 ### Your Moodle token
 
@@ -66,7 +66,7 @@ The setup page writes two plain files that you may also edit by hand: `~/Library
 3. Open **Security keys**.
 4. Copy the key on the **Moodle mobile web service** row and paste it on the setup page.
 
-If that row is missing, log in once with the Moodle app on your phone; the key appears after that. If your university has switched web services off, skip the Moodle step: add your courses by hand and put the PDFs into each course's `slides` folder yourself (the setup page has a button that opens the folder in Finder).
+If that row is missing, log in once with the Moodle app on your phone; the key appears after that. If your university has switched web services off, skip the Moodle step: add your courses by hand and put the PDFs into each course's `slides` folder yourself (the setup page has a button that opens the course's folder in Finder).
 
 The token is stored only in your Mac's Keychain (item `study-desk-moodle`). It is never written to a file or a log.
 
@@ -76,12 +76,12 @@ The token is stored only in your Mac's Keychain (item `study-desk-moodle`). It i
 - Open a course, pick a deck, and press **Sıradaki** (or Enter). Type questions or commands into the bar at the bottom (⌘K focuses it).
 - **Recordings:** record with Voice Memos on your phone, tablet or Mac. On the Mac, drag the recording from the Voice Memos app (or a file from Finder) anywhere into the study-desk window, or use **＋ Ses kaydı yükle**. The audio is deleted once its transcript is saved.
 - **Live mode:** type "canlı" in the bar or use the button on the Today screen while a class is on.
-- **PDFs without Moodle:** drop them into `<course folder>/slides/`; they show up as decks.
+- **PDFs without Moodle:** drop them into the course's `slides` folder (for example `CS101 Algorithms/slides/`); they show up as decks.
 
-Everything you produce stays in your course folder:
+Everything you produce stays in your study folder:
 
 ```
-<course folder>/
+<study folder>/
   courses.toml
   CS101 Algorithms/
     slides/          PDFs from Moodle or added by you
@@ -107,7 +107,7 @@ git pull
 
 ## Uninstalling
 
-`./scripts/uninstall.sh` stops the app and removes the background service. Your course folder, the database (`~/Library/Application Support/StudyDesk/`) and the logs (`~/Library/Logs/StudyDesk/`) are kept; delete them yourself if you want them gone. The Moodle token can be removed from the Keychain Access app (search for `study-desk-moodle`).
+`./scripts/uninstall.sh` stops the app and removes the background service. Your study folder, the database (`~/Library/Application Support/StudyDesk/`) and the logs (`~/Library/Logs/StudyDesk/`) are kept; delete them yourself if you want them gone. The Moodle token can be removed from the Keychain Access app (search for `study-desk-moodle`).
 
 ## Troubleshooting
 

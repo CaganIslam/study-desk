@@ -19,7 +19,8 @@ def serve() -> None:
     while True:
         config = load_config()
         app = create_app(config)
-        server = uvicorn.Server(uvicorn.Config(app, host=HOST, port=config.port, log_level="info"))
+        # A restart must not wait for a slow Claude call in another tab; those requests are dropped after 5 s.
+        server = uvicorn.Server(uvicorn.Config(app, host=HOST, port=config.port, log_level="info", timeout_graceful_shutdown=5))
         app.state.on_restart = lambda: setattr(server, "should_exit", True)
         server.run()
         if not app.state.restart_requested:

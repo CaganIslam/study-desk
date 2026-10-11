@@ -7,7 +7,7 @@ import { initBar } from "./bar.js";
 import { showTerms } from "./terms.js";
 import { leaveDeckless, showDeckless, showLive } from "./live.js";
 import { initDrop, showRecording } from "./recordings.js";
-import { showSetup } from "./setup.js";
+import { leaveSetup, showSetup } from "./setup.js";
 
 applyStrings();
 initBar();
@@ -22,6 +22,7 @@ const crumbs = document.getElementById("crumbs");
 async function route() {
   leaveStudy();
   leaveDeckless();
+  leaveSetup();
   const [page, a, b] = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
   try {
     if (page === "course" && a) await showCourse(view, crumbs, a);
