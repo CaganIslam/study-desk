@@ -74,3 +74,12 @@ def test_question_without_a_slide_is_answered_but_not_stored(app_env):
 def test_empty_message(app_env):
     client, *_ = app_env
     assert command(client, "   ").status_code == 400
+
+
+def test_answers_follow_the_simplicity(app_env):
+    client, _, deck_id = app_env
+    runner = use(client, answer(), answer())
+    command(client, "pivot nedir", deck_id=deck_id, idx=1, simplicity="very_simple")
+    command(client, "peki neden", deck_id=deck_id, idx=1, simplicity="baby")
+    assert "Answer style: very simple." in runner.calls[0].text
+    assert "Answer style" not in runner.calls[1].text  # an unknown value falls back to normal

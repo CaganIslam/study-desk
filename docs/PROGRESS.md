@@ -11,6 +11,11 @@
 - Notes for next time: <anything that will save future-you time>
 -->
 
+## 2026-10-31 - Simplicity setting for explanations
+- Issue: none (asked for directly by the maintainer)
+- What changed: the study screen has a second group of buttons next to the length: "Basitlik" with Normal, Basit and Çok basit. It is remembered per course and applies to slide explanations, the prefetched next slide and answers from the input bar. Explanations are cached per simplicity too: migration 0011 rebuilds the explanations table with the new key column, and existing explanations become "normal". Both groups now show their caption ("Uzunluk", "Basitlik"), since each has a "Normal" button.
+- Notes for next time: the migration was tried on a copy of the real database first (99 explanations before and after, all "normal", integrity and foreign-key checks clean). Simplicity is per course only, not per course and mode like the length, because it follows the subject rather than the situation.
+
 ## 2026-10-11 - Setup page, setup skill, install guide (v0.1)
 - Issue: #17  ·  Milestone: v0.1 - Public alpha
 - What changed: a first-run setup page that is also the settings page (`#/setup`, "Ayarlar"): data folder with an in-page folder browser and the explanation language; Moodle address and token, checked against Moodle before the token goes to the Keychain; enrolled Moodle courses with suggested code, name and folder, or courses added by hand; class times, exams and weekly topics read from the syllabus by Claude and confirmed on a form (or typed in); a Claude check and a recording-tools check. Saving config.toml restarts the server in-process. The installer warns about missing tools and opens the app. A Claude Code skill installs and guides; the README is now an install and use guide.

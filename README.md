@@ -7,7 +7,7 @@ A local study companion for university courses. It runs on your Mac as a small w
 ## What it does
 
 - **Slide by slide.** Open a course and continue where you left off. Press "Sıradaki" (next) and the current slide is explained in your language; technical terms stay in English, the language of the exam. The next slide is prepared in the background, so moving on is quick.
-- **Explanation controls.** Short, normal or detailed. "Daha basit" explains the slide again from zero, "Örnek ver" gives a worked example, "Formülü aç" walks through a formula. "Biliyorum, geç" skips a slide and remembers that you know it.
+- **Explanation controls.** Length: short, normal or detailed. Simplicity: normal, simple or very simple, remembered per course (for example simple for a programming course, very simple for a math-heavy one). "Daha basit" explains the current slide again from zero, "Örnek ver" gives a worked example, "Formülü aç" walks through a formula. "Biliyorum, geç" skips a slide and remembers that you know it.
 - **One input bar.** Ask about the slide ("bu formül ne?", "what is a linear separator?") or give a command ("462 lec2 aç", "14. slayta git", "kaldığım yer") in the same box.
 - **Moodle sync.** New course PDFs are downloaded when you open the app (at most every 30 minutes; every 3 minutes in live mode).
 - **Lecture recordings.** Record the lecture with Voice Memos, then drag the recording into the app. It is matched to the right course by the time it was recorded, transcribed on your Mac and checked. A broken transcript is reported in plain words with a fix to try. Good transcripts are matched to the slides, so every explanation includes what the lecturer said on that slide, and exam or homework hints show up on the home screen.

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from studydesk import decks
 from studydesk.ai.runner import Runner
-from studydesk.ai.tutor import LEVELS, VARIANTS, SlideContext, explain_call
+from studydesk.ai.tutor import LEVELS, SIMPLICITY, VARIANTS, SlideContext, explain_call
 from studydesk.courses import Catalog
 from studydesk.db import Database
 from studydesk.ingest import alignment
@@ -33,11 +33,13 @@ class Explanation:
     terms: list[dict]
     exam_notes: list[str]
     cached: bool
+    simplicity: str = "normal"
 
     def as_dict(self) -> dict:
         return {
             "idx": self.idx,
             "level": self.level,
+            "simplicity": self.simplicity,
             "variant": self.variant,
             "explanation_md": self.explanation_md,
             "summary": self.summary,
@@ -58,6 +60,7 @@ def _row_to_explanation(row, cached: bool) -> Explanation:
         terms=json.loads(row["terms_json"]),
         exam_notes=json.loads(row["exam_notes_json"]),
         cached=cached,
+        simplicity=row["simplicity"],
     )
 
 
@@ -84,7 +87,9 @@ class Explainer:
     def notes_sha(notes: str | None) -> str:
         return hashlib.sha1(notes.encode()).hexdigest()[:16] if notes else ""
 
-    def cached(self, deck_id: int, idx: int, level: str, variant: str | None = None) -> Explanation | None:
+    def cached(
+        self, deck_id: int, idx: int, level: str, variant: str | None = None, simplicity: str = "normal"
+    ) -> Explanation | None:
         """A stored explanation, unless the deck changed or the lecturer's words for the slide arrived since."""
         deck = decks.get_deck(self.db, deck_id)
         if deck is None:
@@ -93,8 +98,8 @@ class Explainer:
         with self.db.connect() as conn:
             row = conn.execute(
                 "SELECT * FROM explanations WHERE deck_id = ? AND idx = ? AND level = ? AND variant = ? AND language = ?"
-                " AND deck_sha = ? AND notes_sha = ?",
-                (deck_id, idx, level, variant or "", self.language, deck["sha256"], notes_sha),
+                " AND simplicity = ? AND deck_sha = ? AND notes_sha = ?",
+                (deck_id, idx, level, variant or "", self.language, simplicity, deck["sha256"], notes_sha),
             ).fetchone()
         return _row_to_explanation(row, cached=True) if row else None
 
@@ -135,38 +140,47 @@ class Explainer:
         )
 
     def explain(
-        self, deck_id: int, idx: int, level: str = "normal", variant: str | None = None, refresh: bool = False
+        self,
+        deck_id: int,
+        idx: int,
+        level: str = "normal",
+        variant: str | None = None,
+        refresh: bool = False,
+        simplicity: str = "normal",
     ) -> Explanation:
-        if level not in LEVELS or (variant is not None and variant not in VARIANTS):
+        if level not in LEVELS or simplicity not in SIMPLICITY or (variant is not None and variant not in VARIANTS):
             raise ValueError("bad_level_or_variant")
         if not refresh:
-            hit = self.cached(deck_id, idx, level, variant)
+            hit = self.cached(deck_id, idx, level, variant, simplicity)
             if hit:
                 return hit
-        key = f"{deck_id}:{idx}:{level}:{variant or ''}:{self.language}"
+        key = f"{deck_id}:{idx}:{level}:{variant or ''}:{self.language}:{simplicity}"
         for _ in range(2):
-            ran, result = self.inflight.run_once(key, lambda: self._generate(deck_id, idx, level, variant))
+            ran, result = self.inflight.run_once(key, lambda: self._generate(deck_id, idx, level, variant, simplicity))
             if ran:
                 return result
-            hit = self.cached(deck_id, idx, level, variant)  # another thread just made it
+            hit = self.cached(deck_id, idx, level, variant, simplicity)  # another thread just made it
             if hit:
                 return hit
-        return self._generate(deck_id, idx, level, variant)  # the other thread failed; try ourselves
+        return self._generate(deck_id, idx, level, variant, simplicity)  # the other thread failed; try ourselves
 
-    def _generate(self, deck_id: int, idx: int, level: str, variant: str | None) -> Explanation:
+    def _generate(self, deck_id: int, idx: int, level: str, variant: str | None, simplicity: str = "normal") -> Explanation:
         ctx = self.context(deck_id, idx)
         if variant == "different":
-            base = self.cached(deck_id, idx, level) or self.cached(deck_id, idx, "normal")
+            base = self.cached(deck_id, idx, level, simplicity=simplicity) or self.cached(
+                deck_id, idx, "normal", simplicity=simplicity
+            )
             if base:
                 ctx = SlideContext(**{**ctx.__dict__, "previous_explanation": base.explanation_md})
-        result = self.runner.run(explain_call(ctx, level=level, variant=variant, language=self.language, model=self.model))
+        call = explain_call(ctx, level=level, variant=variant, language=self.language, model=self.model, simplicity=simplicity)
+        result = self.runner.run(call)
         data = result.data
         deck = decks.get_deck(self.db, deck_id)
         with self.db.connect() as conn:
             conn.execute(
-                "INSERT INTO explanations (deck_id, idx, level, variant, language, deck_sha, explanation_md, summary, terms_json, exam_notes_json, duration_ms, notes_sha)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                " ON CONFLICT (deck_id, idx, level, variant, language) DO UPDATE SET deck_sha = excluded.deck_sha, notes_sha = excluded.notes_sha,"
+                "INSERT INTO explanations (deck_id, idx, level, variant, language, simplicity, deck_sha, explanation_md, summary, terms_json, exam_notes_json, duration_ms, notes_sha)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                " ON CONFLICT (deck_id, idx, level, variant, language, simplicity) DO UPDATE SET deck_sha = excluded.deck_sha, notes_sha = excluded.notes_sha,"
                 " explanation_md = excluded.explanation_md, summary = excluded.summary, terms_json = excluded.terms_json,"
                 " exam_notes_json = excluded.exam_notes_json, duration_ms = excluded.duration_ms, created_at = datetime('now')",
                 (
@@ -175,6 +189,7 @@ class Explainer:
                     level,
                     variant or "",
                     self.language,
+                    simplicity,
                     deck["sha256"],
                     str(data.get("explanation_md", "")),
                     str(data.get("summary", "")),
@@ -201,6 +216,7 @@ class Explainer:
             terms=list(data.get("terms", [])),
             exam_notes=list(data.get("exam_notes", [])),
             cached=False,
+            simplicity=simplicity,
         )
 
 

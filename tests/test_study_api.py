@@ -46,7 +46,7 @@ def explained_titles(runner):
 def test_explanation_shape_and_cache(app_env):
     client, runner, deck_id = app_env
     first = explain(client, deck_id, 1).json()
-    assert set(first) == {"idx", "level", "variant", "explanation_md", "summary", "terms", "exam_notes", "cached"}
+    assert set(first) == {"idx", "level", "simplicity", "variant", "explanation_md", "summary", "terms", "exam_notes", "cached"}
     assert first["cached"] is False and first["explanation_md"] == "About Topic 1"
     second = explain(client, deck_id, 1).json()
     client.app_state.jobs.join()
@@ -63,6 +63,18 @@ def test_levels_are_cached_separately_and_set_effort(app_env):
     efforts = [c.effort for c, title in zip(runner.calls, explained_titles(runner)) if title == "Topic 1"]
     assert efforts == ["low", "medium"]
     assert runner.calls[0].images and runner.calls[0].images[0].suffix == ".png"
+
+
+def test_simplicity_is_cached_separately(app_env):
+    client, runner, deck_id = app_env
+    explain(client, deck_id, 1)
+    simple = explain(client, deck_id, 1, simplicity="simple").json()
+    assert simple["simplicity"] == "simple" and simple["cached"] is False
+    client.app_state.jobs.join()
+    calls = [c for c, title in zip(runner.calls, explained_titles(runner)) if title == "Topic 1"]
+    assert len(calls) == 2 and "Style:" not in calls[0].text and "Style: simple." in calls[1].text
+    assert explain(client, deck_id, 1, simplicity="simple").json()["cached"] is True
+    assert explain(client, deck_id, 1, simplicity="baby").status_code == 400
 
 
 def test_previous_slide_summary_is_passed_on(app_env):

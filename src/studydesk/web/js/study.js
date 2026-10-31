@@ -6,6 +6,7 @@ import { openTerm } from "./terms.js";
 import { clearPage, setPage } from "./context.js";
 
 const LEVELS = ["short", "normal", "detailed"];
+const SIMPLICITIES = ["normal", "simple", "very_simple"];
 const VARIANTS = ["simpler", "example", "different", "formula"];
 
 const storage = {
@@ -30,7 +31,8 @@ let keyHandler = null;
 const $ = (id) => document.getElementById(id);
 
 const studyPage = {
-  payload: () => (state ? { deck_id: state.deckId, idx: state.idx, level: state.level, live: state.live } : null),
+  payload: () =>
+    state ? { deck_id: state.deckId, idx: state.idx, level: state.level, simplicity: state.simplicity, live: state.live } : null,
   showAnswer: (answer, idx) => showAnswer(answer, idx),
   handleAction: (action) => handleAction(action),
 };
@@ -51,7 +53,21 @@ export async function showStudy(view, crumbs, deckId, idx, options = {}) {
   const code = listing.deck.code;
   const live = Boolean(options.live);
   const levelKey = live ? `level-live:${code}` : `level:${code}`;
-  state = { deckId, idx, listing, code, live, levelKey, level: storage.get(levelKey, live ? "short" : "normal"), token: 0, timer: null };
+  const simplicityKey = `simplicity:${code}`; // one per course, live or not
+  const simplicity = storage.get(simplicityKey, "normal");
+  state = {
+    deckId,
+    idx,
+    listing,
+    code,
+    live,
+    levelKey,
+    level: storage.get(levelKey, live ? "short" : "normal"),
+    simplicityKey,
+    simplicity: SIMPLICITIES.includes(simplicity) ? simplicity : "normal",
+    token: 0,
+    timer: null,
+  };
   setPage(studyPage);
   crumbs.innerHTML = `${live ? `<span class="live-badge">${esc(t("live.badge"))}</span>` : ""}<a href="#/course/${enc(code)}">${esc(
     code,
@@ -86,8 +102,15 @@ function template() {
       </div>
       <div class="explain-pane">
         <h2 id="slide-title"></h2>
-        <div class="levels" role="group" aria-label="${esc(t("study.level"))}">
-          ${LEVELS.map((l, i) => `<button data-level="${l}" title="${i + 1}">${esc(t(`study.level.${l}`))}</button>`).join("")}
+        <div class="settings">
+          <div class="levels" role="group" aria-labelledby="level-caption">
+            <span id="level-caption" class="caption">${esc(t("study.level"))}</span>
+            ${LEVELS.map((l, i) => `<button data-level="${l}" title="${i + 1}">${esc(t(`study.level.${l}`))}</button>`).join("")}
+          </div>
+          <div class="levels" role="group" aria-labelledby="simplicity-caption">
+            <span id="simplicity-caption" class="caption">${esc(t("study.simplicity"))}</span>
+            ${SIMPLICITIES.map((s) => `<button data-simplicity="${s}">${esc(t(`study.simplicity.${s}`))}</button>`).join("")}
+          </div>
         </div>
         <div id="explanation" class="explanation" aria-live="polite"></div>
         <div class="variants">
@@ -115,6 +138,7 @@ function bind() {
     }
   };
   for (const button of document.querySelectorAll("[data-level]")) button.onclick = () => setLevel(button.dataset.level);
+  for (const button of document.querySelectorAll("[data-simplicity]")) button.onclick = () => setSimplicity(button.dataset.simplicity);
   for (const button of document.querySelectorAll("[data-variant]")) button.onclick = () => loadExplanation(button.dataset.variant);
 }
 
@@ -254,9 +278,20 @@ function setLevel(level) {
   loadExplanation();
 }
 
+function setSimplicity(simplicity) {
+  if (!SIMPLICITIES.includes(simplicity) || simplicity === state.simplicity) return;
+  state.simplicity = simplicity;
+  storage.set(state.simplicityKey, simplicity);
+  renderLevels();
+  loadExplanation();
+}
+
 function renderLevels() {
   for (const button of document.querySelectorAll("[data-level]")) {
     button.classList.toggle("active", button.dataset.level === state.level);
+  }
+  for (const button of document.querySelectorAll("[data-simplicity]")) {
+    button.classList.toggle("active", button.dataset.simplicity === state.simplicity);
   }
 }
 
@@ -303,7 +338,8 @@ async function loadExplanation(variant = null, refresh = false) {
   const pending = setTimeout(tick, 150); // cached explanations arrive before anything flickers
   state.timer = setInterval(tick, 1000);
   try {
-    const data = await api.post(`/api/decks/${deckId}/slides/${idx}/explain`, { level: state.level, variant, refresh, live: state.live });
+    const body = { level: state.level, simplicity: state.simplicity, variant, refresh, live: state.live };
+    const data = await api.post(`/api/decks/${deckId}/slides/${idx}/explain`, body);
     if (!state || token !== state.token) return;
     renderExplanation(data, variant);
     state.listing.slides[idx - 1].explained = true;

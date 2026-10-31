@@ -242,6 +242,16 @@ main {
 .variants {
   margin-top: 14px;
 }
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+.levels .caption {
+  align-self: center;
+  color: var(--muted);
+  font-size: 14px;
+}
 .explanation {
   margin-top: 12px;
   min-height: 120px;
