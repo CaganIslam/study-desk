@@ -4,6 +4,7 @@ import { api, enc } from "./api.js";
 import { clearPage, setPage } from "./context.js";
 import { escapeHtml as esc, highlightCode, renderMarkdown } from "./render.js";
 import { t } from "./strings.js";
+import { courseSimplicity } from "./study.js";
 
 export async function showLive(view, crumbs, course = null) {
   const target = await api.get(`/api/live${course ? `?course=${enc(course)}` : ""}`);
@@ -43,7 +44,7 @@ export async function showDeckless(view, crumbs, code) {
       <div id="deckless-qa" class="questions"></div>
     </section>`;
   const page = {
-    payload: () => ({ course_code: code, live: true, level: "short" }),
+    payload: () => ({ course_code: code, live: true, level: "short", simplicity: courseSimplicity(code) }),
     showAnswer: async () => load(),
     handleAction: null,
   };

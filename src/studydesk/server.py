@@ -22,7 +22,7 @@ from studydesk.courses import CatalogFile, Course
 from studydesk.db import Database
 from studydesk.ingest import alignment, moodle, recordings
 from studydesk.jobs import JobQueue
-from studydesk.ai.tutor import bar_call
+from studydesk.ai.tutor import SIMPLICITY, bar_call
 from studydesk.study import commands, explanations, questions, sessions, terms
 from studydesk.study.prefetch import InFlight, Prefetcher
 
@@ -49,6 +49,7 @@ class CommandRequest(BaseModel):
     deck_id: int | None = None
     idx: int | None = None
     level: str = "normal"
+    simplicity: str = "normal"
     course_code: str | None = None  # live mode without a deck
     live: bool = False
 
@@ -72,6 +73,7 @@ class ActivityRequest(BaseModel):
 
 class ExplainRequest(BaseModel):
     level: str = "normal"
+    simplicity: str = "normal"
     variant: str | None = None
     refresh: bool = False
     live: bool = False
@@ -538,11 +540,13 @@ def create_app(
         deck_or_404(deck_id)
         slide_or_404(deck_id, idx)
         try:
-            result = explainer(request.live).explain(deck_id, idx, request.level, request.variant, request.refresh)
+            result = explainer(request.live).explain(
+                deck_id, idx, request.level, request.variant, request.refresh, request.simplicity
+            )
         except ValueError:
             raise HTTPException(status_code=400, detail="bad_level_or_variant") from None
         if request.variant is None and idx < len(decks.get_slides(db, deck_id)):
-            prefetcher.want(deck_id, idx + 1, request.level, request.live)
+            prefetcher.want(deck_id, idx + 1, request.level, request.live, request.simplicity)
         return result.as_dict()
 
     @app.put("/api/decks/{deck_id}/slides/{idx}/marks/{mark}")
@@ -855,6 +859,7 @@ def create_app(
         ctx = explainer().context(deck["id"], idx) if deck and idx else None
         thread = questions.thread(db, deck["id"], idx) if ctx else ()
         level = request.level if request.level in {"short", "normal", "detailed"} else "normal"
+        simplicity = request.simplicity if request.simplicity in SIMPLICITY else "normal"
         course_list = tuple((c.code, c.name, c.aliases) for c in catalog.courses)
         live_course = catalog.by_code(request.course_code) if request.course_code and not deck else None
         course_line = (
@@ -864,7 +869,10 @@ def create_app(
         )
         model = (config.model_live or LIVE_MODEL) if request.live else config.model_default
         data = app.state.runner.run(
-            bar_call(ctx, question, course_list, thread, level=level, language=config.language, model=model, course_line=course_line)
+            bar_call(
+                ctx, question, course_list, thread, level=level, language=config.language, model=model,
+                course_line=course_line, simplicity=simplicity,
+            )
         ).data
 
         action = data.get("action") or {}

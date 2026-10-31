@@ -50,20 +50,20 @@ class Prefetcher:
     def __init__(self, jobs: JobQueue, make_explainer: Callable) -> None:
         self.jobs = jobs
         self.make_explainer = make_explainer
-        self.wanted: dict[int, tuple[int, str]] = {}  # deck id -> (slide idx, level)
+        self.wanted: dict[int, tuple[int, str, str]] = {}  # deck id -> (slide idx, level, simplicity)
 
-    def want(self, deck_id: int, idx: int, level: str, live: bool = False) -> None:
-        self.wanted[deck_id] = (idx, level)
+    def want(self, deck_id: int, idx: int, level: str, live: bool = False, simplicity: str = "normal") -> None:
+        self.wanted[deck_id] = (idx, level, simplicity)
 
         def job() -> None:
-            if self.wanted.get(deck_id) != (idx, level):
+            if self.wanted.get(deck_id) != (idx, level, simplicity):
                 return  # the student moved on before this job's turn
             explainer = self.make_explainer(live)
-            if explainer.cached(deck_id, idx, level):
+            if explainer.cached(deck_id, idx, level, simplicity=simplicity):
                 return
             try:
-                explainer.explain(deck_id, idx, level)
+                explainer.explain(deck_id, idx, level, simplicity=simplicity)
             except (ClaudeError, LookupError):
                 pass  # shown to the student if and when they open the slide
 
-        self.jobs.submit(f"prefetch:{deck_id}:{idx}:{level}", job)
+        self.jobs.submit(f"prefetch:{deck_id}:{idx}:{level}:{simplicity}", job)

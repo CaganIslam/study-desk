@@ -58,3 +58,12 @@ def test_same_slide_is_never_generated_twice_at_once(app_env):
     titles = [c.text.split("Slide title: ")[1].split("\n")[0] for c in slow.calls]
     assert titles.count("Topic 3") == 1
     assert len(results) == 3 and all(r["explanation_md"] == "About Topic 3" for r in results)
+
+
+def test_next_slide_is_prefetched_at_the_same_simplicity(app_env):
+    client, runner, deck_id = app_env
+    explain(client, deck_id, 1, simplicity="very_simple")
+    client.app_state.jobs.join()
+    call_for_2 = next(c for c, title in zip(runner.calls, explained_titles(runner)) if title == "Topic 2")
+    assert "Style: very simple." in call_for_2.text
+    assert explain(client, deck_id, 2, simplicity="very_simple").json()["cached"] is True

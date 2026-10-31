@@ -31,6 +31,21 @@ VARIANTS = {
     "formula": "Walk through the formula(s) on this slide: what each symbol is, why the formula has this shape, then a tiny numeric example.",
 }
 
+# How plainly to explain, chosen per course by the student. "normal" adds nothing, so
+# explanations cached before this setting existed are the normal ones.
+SIMPLICITY = {
+    "normal": "",
+    "simple": (
+        "Style: simple. The student is new to this field: use plain words, explain each technical term "
+        "in a few everyday words the first time it appears, and give the intuition before any notation."
+    ),
+    "very_simple": (
+        "Style: very simple. The student has no background here: start from zero, use one everyday analogy, "
+        "keep jargon to the slide's own terms and define each of them in everyday words, say in words what "
+        "every formula means before using it, and keep sentences short."
+    ),
+}
+
 # Claude Code effort per length; lower effort answers several times faster (measured 2026-10-04).
 EFFORT = {"short": "low", "normal": "low", "detailed": "medium"}
 
@@ -95,13 +110,18 @@ def explain_call(
     language: str = "tr",
     model: str | None = None,
     effort: str | None = None,
+    simplicity: str = "normal",
 ) -> ClaudeCall:
     if level not in LEVELS:
         raise ValueError(f"unknown level {level!r}")
     if variant is not None and variant not in VARIANTS:
         raise ValueError(f"unknown variant {variant!r}")
+    if simplicity not in SIMPLICITY:
+        raise ValueError(f"unknown simplicity {simplicity!r}")
     lines = _context_block(ctx)
     lines.append(LEVELS[level])
+    if SIMPLICITY[simplicity]:
+        lines.append(SIMPLICITY[simplicity])
     if variant:
         lines.append(VARIANTS[variant])
         if variant == "different" and ctx.previous_explanation:
@@ -155,6 +175,7 @@ def bar_call(
     language: str = "tr",
     model: str | None = None,
     course_line: str | None = None,
+    simplicity: str = "normal",
 ) -> ClaudeCall:
     """One call that either answers the message or turns it into an app action."""
     lines = _context_block(ctx) if ctx else [course_line or "No slide is open."]
@@ -166,6 +187,8 @@ def bar_call(
     for exchange in thread[-5:]:
         lines.append(f"Earlier question: {exchange.question}\nEarlier answer: {exchange.answer}")
     lines.append(LEVELS[level].replace("Length", "Answer length"))
+    if SIMPLICITY.get(simplicity):
+        lines.append(SIMPLICITY[simplicity].replace("Style", "Answer style"))
     lines.append(f"Message: {message.strip()}")
     return ClaudeCall(
         system=_prompt("bar_system").replace("{language}", language_name(language)),

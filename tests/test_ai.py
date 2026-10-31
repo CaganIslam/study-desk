@@ -5,7 +5,7 @@ import sys
 import pytest
 
 from studydesk.ai.runner import ClaudeCall, ClaudeCLI, ClaudeError, FakeRunner
-from studydesk.ai.tutor import EFFORT, Exchange, SlideContext, answer_call, explain_call
+from studydesk.ai.tutor import EFFORT, Exchange, SlideContext, answer_call, bar_call, explain_call
 
 # --- runner --------------------------------------------------------------------
 
@@ -135,6 +135,16 @@ def test_levels_and_variants():
         explain_call(CTX, level="huge")
     with pytest.raises(ValueError):
         explain_call(CTX, variant="poem")
+
+
+def test_simplicity_adds_a_style_line():
+    assert "Style:" not in explain_call(CTX).text  # normal adds nothing
+    assert "Style: simple." in explain_call(CTX, simplicity="simple").text
+    very = explain_call(CTX, level="short", simplicity="very_simple")
+    assert "Style: very simple." in very.text and "Length: short." in very.text
+    assert "Answer style: simple." in bar_call(CTX, "x", (), simplicity="simple").text
+    with pytest.raises(ValueError):
+        explain_call(CTX, simplicity="baby")
 
 
 def test_last_slide_is_flagged():
