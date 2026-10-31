@@ -37,6 +37,12 @@ const studyPage = {
   handleAction: (action) => handleAction(action),
 };
 
+// The simplicity the student chose for a course; the study page and the deckless live page share it.
+export function courseSimplicity(code) {
+  const value = storage.get(`simplicity:${code}`, "normal");
+  return SIMPLICITIES.includes(value) ? value : "normal";
+}
+
 export function leaveStudy() {
   if (keyHandler) document.removeEventListener("keydown", keyHandler);
   keyHandler = null;
@@ -54,7 +60,6 @@ export async function showStudy(view, crumbs, deckId, idx, options = {}) {
   const live = Boolean(options.live);
   const levelKey = live ? `level-live:${code}` : `level:${code}`;
   const simplicityKey = `simplicity:${code}`; // one per course, live or not
-  const simplicity = storage.get(simplicityKey, "normal");
   state = {
     deckId,
     idx,
@@ -64,7 +69,7 @@ export async function showStudy(view, crumbs, deckId, idx, options = {}) {
     levelKey,
     level: storage.get(levelKey, live ? "short" : "normal"),
     simplicityKey,
-    simplicity: SIMPLICITIES.includes(simplicity) ? simplicity : "normal",
+    simplicity: courseSimplicity(code),
     token: 0,
     timer: null,
   };
